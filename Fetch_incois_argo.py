@@ -11,13 +11,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 from typing import Optional
 
 import pandas as pd
 import requests
 import urllib3
-import xarray as xr
 
 BASE_URL = "https://erddap.incois.gov.in/erddap/tabledap/Indian_ARGO_Floats.csv"
 
@@ -28,6 +28,16 @@ VARIABLES = [
 ]
 
 MAX_LEVELS_PER_CYCLE = 60
+
+# The local .nc snapshot below is write-only — nothing in this project reads
+# it back (the frontend only ever fetches the JSON this function returns/
+# writes). On a memory-constrained host (e.g. Render's free/Starter 512MB
+# tier) building a whole second xarray Dataset copy of the same rows, plus
+# loading the netCDF4/HDF5 C extension to write it, is pure overhead that
+# can be the difference between fitting in RAM and an OOM kill. Off by
+# default; set WRITE_LOCAL_ARGO_NETCDF=true if you actually use that file
+# for offline analysis locally.
+WRITE_LOCAL_NETCDF = os.environ.get("WRITE_LOCAL_ARGO_NETCDF", "false").lower() == "true"
 MAX_CYCLES_PER_FLOAT = 20
 
 
@@ -118,42 +128,46 @@ def fetch_argo(
     df = df.sort_values(["PLATFORM_NUMBER", "CYCLE_NUMBER", "time"]).reset_index(drop=True)
     df.to_csv(output_csv, index=False)
 
-    # ---- NetCDF (kept for parity with the original pipeline / offline use) ----
-    nc_df = df.copy()
-    nc_df["time"] = pd.to_datetime(nc_df["time"], utc=True, errors="coerce")
-    nc_df = nc_df.dropna(subset=["time"]).copy()
-    nc_df["time"] = nc_df["time"].dt.tz_localize(None)
+    # ---- NetCDF (write-only, off by default — see WRITE_LOCAL_NETCDF above) ----
+    if WRITE_LOCAL_NETCDF:
+        import xarray as xr  # imported lazily: only pulls in netCDF4/HDF5 when actually used
 
-    try:
-        ds = xr.Dataset(
-            data_vars={
-                "TEMP": ("observation", nc_df["TEMP"].to_numpy(dtype="float32")),
-                "PSAL": ("observation", nc_df["PSAL"].to_numpy(dtype="float32")),
-                "PRES_ADJUSTED": ("observation", nc_df["PRES_ADJUSTED"].to_numpy(dtype="float32")),
-                "TEMP_ADJUSTED": ("observation", nc_df["TEMP_ADJUSTED"].to_numpy(dtype="float32")),
-                "PSAL_ADJUSTED": ("observation", nc_df["PSAL_ADJUSTED"].to_numpy(dtype="float32")),
-                "PRES_QC": ("observation", nc_df["PRES_QC"].to_numpy(dtype="float32")),
-                "TEMP_QC": ("observation", nc_df["TEMP_QC"].to_numpy(dtype="float32")),
-                "PSAL_QC": ("observation", nc_df["PSAL_QC"].to_numpy(dtype="float32")),
-                "PRES": ("observation", nc_df["PRES"].to_numpy(dtype="float32")),
-                "latitude": ("observation", nc_df["latitude"].to_numpy(dtype="float32")),
-                "longitude": ("observation", nc_df["longitude"].to_numpy(dtype="float32")),
-            },
-            coords={
-                "time": ("observation", nc_df["time"].to_numpy(dtype="datetime64[ns]")),
-                "PLATFORM_NUMBER": ("observation", nc_df["PLATFORM_NUMBER"].to_numpy(dtype=str)),
-                "CYCLE_NUMBER": ("observation", nc_df["CYCLE_NUMBER"].to_numpy(dtype="float32")),
-            },
-        )
-        ds.attrs.update({
-            "title": "INCOIS Indian Argo observations",
-            "source": "INCOIS ERDDAP - Indian_ARGO_Floats",
-            "region": f"Latitude {min_lat} to {max_lat}, Longitude {min_lon} to {max_lon}",
-            "time_range": f"{start} to {end}",
-        })
-        ds.to_netcdf(output_netcdf, engine="netcdf4")
-    except Exception as exc:  # noqa: BLE001 - NetCDF is best-effort; JSON is what the frontend needs
-        print(f"[fetch_incois_argo] NetCDF write skipped: {exc}")
+        nc_df = df.copy()
+        nc_df["time"] = pd.to_datetime(nc_df["time"], utc=True, errors="coerce")
+        nc_df = nc_df.dropna(subset=["time"]).copy()
+        nc_df["time"] = nc_df["time"].dt.tz_localize(None)
+
+        try:
+            ds = xr.Dataset(
+                data_vars={
+                    "TEMP": ("observation", nc_df["TEMP"].to_numpy(dtype="float32")),
+                    "PSAL": ("observation", nc_df["PSAL"].to_numpy(dtype="float32")),
+                    "PRES_ADJUSTED": ("observation", nc_df["PRES_ADJUSTED"].to_numpy(dtype="float32")),
+                    "TEMP_ADJUSTED": ("observation", nc_df["TEMP_ADJUSTED"].to_numpy(dtype="float32")),
+                    "PSAL_ADJUSTED": ("observation", nc_df["PSAL_ADJUSTED"].to_numpy(dtype="float32")),
+                    "PRES_QC": ("observation", nc_df["PRES_QC"].to_numpy(dtype="float32")),
+                    "TEMP_QC": ("observation", nc_df["TEMP_QC"].to_numpy(dtype="float32")),
+                    "PSAL_QC": ("observation", nc_df["PSAL_QC"].to_numpy(dtype="float32")),
+                    "PRES": ("observation", nc_df["PRES"].to_numpy(dtype="float32")),
+                    "latitude": ("observation", nc_df["latitude"].to_numpy(dtype="float32")),
+                    "longitude": ("observation", nc_df["longitude"].to_numpy(dtype="float32")),
+                },
+                coords={
+                    "time": ("observation", nc_df["time"].to_numpy(dtype="datetime64[ns]")),
+                    "PLATFORM_NUMBER": ("observation", nc_df["PLATFORM_NUMBER"].to_numpy(dtype=str)),
+                    "CYCLE_NUMBER": ("observation", nc_df["CYCLE_NUMBER"].to_numpy(dtype="float32")),
+                },
+            )
+            ds.attrs.update({
+                "title": "INCOIS Indian Argo observations",
+                "source": "INCOIS ERDDAP - Indian_ARGO_Floats",
+                "region": f"Latitude {min_lat} to {max_lat}, Longitude {min_lon} to {max_lon}",
+                "time_range": f"{start} to {end}",
+            })
+            ds.to_netcdf(output_netcdf, engine="netcdf4")
+            del ds
+        except Exception as exc:  # noqa: BLE001 - NetCDF is best-effort; JSON is what the frontend needs
+            print(f"[fetch_incois_argo] NetCDF write skipped: {exc}")
 
     # ---- Build the compact JSON the frontend fetches ----
     floats_out = []
