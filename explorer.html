@@ -336,8 +336,8 @@
         <div class="field">
           <label>Dataset</label>
           <select id="select-model">
-            <option value="HYCOM">HYCOM (demo)</option>
             <option value="Copernicus">Copernicus Marine</option>
+            <option value="HYCOM">HYCOM (demo)</option>
             <option disabled>ROMS (coming soon)</option>
             <option disabled>NEMO (coming soon)</option>
           </select>
@@ -670,7 +670,7 @@
       Pipeline: <span class="mono">INCOIS ERDDAP (Argo + model grids) &rarr; FastAPI backend &rarr; 3D viewer &rarr; Compare &amp; Analysis.</span>
     </p>
     <p style="color:var(--mist);font-size:12px;line-height:1.6;margin-top:14px;border-top:1px solid var(--panel-border);padding-top:12px;">
-      Role: <b style="color:var(--foam);" id="about-role-text">&mdash;</b> &middot; Model vs. observation comparisons and depth/time/variable data shown here are illustrative unless connected to a live backend.
+      Role: <b style="color:var(--foam);" id="about-role-text">&mdash;</b> &middot; Model vs. observation comparisons and depth/time/variable data are sourced from live backend data when available; if live data retrieval fails due to a server or data-source issue, the interface may display fallback/illustrative data.
     </p>
   </div>
 </div>
