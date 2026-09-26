@@ -1,0 +1,2456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SagarDrishti &middot; Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+:root{
+    --abyss:#050d14;
+    --deep:#0a1a26;
+    --panel:rgba(160,200,215,0.055);
+    --panel-border:rgba(160,210,225,0.14);
+    --surface:#0e2433;
+    --foam:#eaf6f8;
+    --mist:#8aa8b4;
+    --tide:#22c1c9;
+    --tide-bright:#5be8e0;
+    --kelp:#4d8b7c;
+    --coral:#e8895b;
+    --alert:#e6b95c;
+    --danger:#e0616b;
+    --good:#5bd48a;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;background:var(--abyss);color:var(--foam);font-family:'Inter',sans-serif;overflow-x:hidden;}
+  ::selection{background:var(--tide);color:#05141a;}
+  h1,h2,h3,h4{font-family:'Space Grotesk',sans-serif;margin:0;letter-spacing:-0.01em;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  button{font-family:inherit;cursor:pointer;}
+  a{color:inherit;}
+
+  .view{display:none;min-height:100vh;}
+  .view.active{display:block;}
+
+  /* ---------- APP SHELL ---------- */
+  .topbar{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;border-bottom:1px solid var(--panel-border);background:rgba(6,16,22,0.92);position:sticky;top:0;z-index:50;backdrop-filter:blur(10px);}
+  .topbar-left{display:flex;align-items:center;gap:30px;}
+  .brand{display:flex;align-items:center;gap:10px;font-family:'Space Grotesk';font-weight:600;font-size:19px;letter-spacing:0.01em;}
+  .brand-mark{width:30px;height:30px;border-radius:50%;object-fit:cover;box-shadow:0 0 18px rgba(34,193,201,0.55);display:inline-block;flex-shrink:0;}
+  .topbar-nav{display:flex;gap:4px;}
+  .topbar-nav button{background:none;border:none;color:var(--mist);font-size:14px;padding:8px 14px;border-radius:7px;}
+  .topbar-nav button.active{color:var(--foam);background:rgba(255,255,255,0.06);}
+  .topbar-nav button:hover{color:var(--foam);}
+  .topbar-right{display:flex;align-items:center;gap:16px;}
+  .status-pill{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--mist);font-family:'IBM Plex Mono';background:rgba(255,255,255,0.04);border:1px solid var(--panel-border);padding:6px 12px;border-radius:20px;}
+  .status-dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 6px var(--good);}
+  .avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--tide),var(--kelp));display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:700;color:#04141a;border:none;}
+
+  .explore-grid{display:grid;grid-template-columns:270px 1fr 320px;height:calc(100vh - 56px);}
+  @media (max-width:1080px){.explore-grid{grid-template-columns:240px 1fr;}#argo-panel{position:fixed;right:0;top:56px;bottom:0;width:320px;z-index:40;box-shadow:-12px 0 30px rgba(0,0,0,0.4);transform:translateX(100%);transition:transform .25s ease;}#argo-panel.open{transform:translateX(0);}}
+  @media (max-width:760px){.explore-grid{grid-template-columns:1fr;grid-template-rows:auto 1fr;}#control-panel{position:fixed;left:0;top:56px;bottom:0;width:270px;z-index:41;transform:translateX(-100%);transition:transform .25s ease;box-shadow:12px 0 30px rgba(0,0,0,.4);}#control-panel.open{transform:translateX(0);}#mobile-panel-toggle{display:flex !important;}}
+
+  #control-panel{border-right:1px solid var(--panel-border);overflow-y:auto;padding:18px 16px 40px;background:rgba(8,20,28,0.6);}
+  .panel-section{margin-bottom:22px;}
+  .panel-label{font-size:11px;letter-spacing:0.06em;color:var(--mist);margin-bottom:10px;font-family:'IBM Plex Mono';}
+  .field{margin-bottom:12px;}
+  .field label{display:block;font-size:12.5px;color:var(--mist);margin-bottom:5px;}
+  select, .fake-select{width:100%;background:rgba(255,255,255,0.045);border:1px solid var(--panel-border);color:var(--foam);padding:9px 10px;border-radius:8px;font-size:13.5px;}
+  select:focus{outline:2px solid var(--tide);outline-offset:1px;}
+  select option{background-color:#0c1f2b;color:var(--foam);}
+  select option:disabled{color:var(--mist);}
+  .chip-row{display:flex;flex-wrap:wrap;gap:6px;}
+  .chip{padding:6px 11px;border-radius:20px;font-size:12px;background:rgba(255,255,255,0.045);border:1px solid var(--panel-border);color:var(--mist);}
+  .chip.active{background:rgba(34,193,201,0.18);border-color:var(--tide);color:var(--tide-bright);}
+
+  .slider-wrap{margin-top:8px;}
+  input[type=range]{width:100%;accent-color:var(--tide);}
+  .slider-scale{display:flex;justify-content:space-between;font-size:10.5px;color:var(--mist);font-family:'IBM Plex Mono';margin-top:2px;}
+  .readout{display:flex;justify-content:space-between;align-items:baseline;margin-top:6px;}
+  .readout .val{font-family:'IBM Plex Mono';font-size:14px;color:var(--tide-bright);}
+  .status-tag{font-size:10.5px;padding:2px 8px;border-radius:12px;font-family:'IBM Plex Mono';}
+  .status-exact{background:rgba(91,212,138,0.15);color:var(--good);}
+  .status-interp{background:rgba(230,185,92,0.15);color:var(--alert);}
+
+  .transport-row{display:flex;gap:6px;margin-top:8px;}
+  .transport-row button{flex:1;background:rgba(255,255,255,0.045);border:1px solid var(--panel-border);color:var(--foam);padding:8px;border-radius:8px;font-size:13px;}
+  .transport-row button:hover{background:rgba(255,255,255,0.09);}
+  .transport-row button.play{background:rgba(34,193,201,0.18);border-color:var(--tide);color:var(--tide-bright);}
+
+  .viz-toggle-row{display:flex;flex-direction:column;gap:8px;}
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;font-size:13px;}
+  .switch{width:34px;height:19px;border-radius:20px;background:rgba(255,255,255,0.12);position:relative;cursor:pointer;flex-shrink:0;transition:background .15s;}
+  .switch.on{background:var(--tide);}
+  .switch::after{content:'';position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;transition:left .15s;}
+  .switch.on::after{left:17px;}
+
+  /* --- main viewer --- */
+  #viewer-wrap{position:relative;background:radial-gradient(circle at 30% 20%,#0b2836,#040d13 75%);overflow:hidden;}
+  #viewer-canvas{width:100%;height:100%;display:block;}
+  .viewer-topbar{position:absolute;top:14px;left:16px;right:16px;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none;z-index:5;}
+  .viewer-badge{pointer-events:auto;background:rgba(6,16,22,0.72);border:1px solid var(--panel-border);backdrop-filter:blur(8px);border-radius:10px;padding:10px 14px;font-size:12.5px;}
+  .viewer-badge .k{color:var(--mist);font-size:10.5px;font-family:'IBM Plex Mono';margin-bottom:2px;}
+  .viewer-badge .v{font-family:'IBM Plex Mono';font-size:14px;color:var(--foam);}
+  .view-mode-row{display:flex;gap:6px;pointer-events:auto;}
+  .view-mode-row button{background:rgba(6,16,22,0.72);border:1px solid var(--panel-border);color:var(--mist);font-size:12px;padding:8px 12px;border-radius:8px;backdrop-filter:blur(8px);}
+  .view-mode-row button.active{color:var(--tide-bright);border-color:var(--tide);background:rgba(34,193,201,0.14);}
+  .legend{position:absolute;bottom:16px;left:16px;background:rgba(6,16,22,0.75);border:1px solid var(--panel-border);border-radius:10px;padding:10px 14px;backdrop-filter:blur(8px);z-index:5;}
+  .legend-bar{width:180px;height:8px;border-radius:4px;margin:6px 0 4px;}
+  .legend-labels{display:flex;justify-content:space-between;font-size:10.5px;color:var(--mist);font-family:'IBM Plex Mono';}
+  .viewer-actions{position:absolute;bottom:16px;right:16px;display:flex;gap:8px;z-index:5;}
+  .icon-btn{width:36px;height:36px;border-radius:9px;background:rgba(6,16,22,0.75);border:1px solid var(--panel-border);color:var(--foam);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px);font-size:15px;}
+  .icon-btn:hover{background:rgba(255,255,255,0.08);}
+  .rapid-btn{position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:5;background:linear-gradient(135deg,var(--tide),var(--kelp));color:#04141a;border:none;padding:10px 18px;border-radius:20px;font-size:13.5px;font-weight:700;box-shadow:0 6px 20px rgba(34,193,201,0.35);display:flex;align-items:center;gap:7px;}
+  .tooltip-card{position:absolute;pointer-events:none;background:rgba(6,16,22,0.94);border:1px solid var(--tide);border-radius:10px;padding:10px 13px;font-size:12px;z-index:8;max-width:210px;box-shadow:0 8px 22px rgba(0,0,0,0.4);}
+  .tooltip-card .t-title{font-family:'IBM Plex Mono';color:var(--tide-bright);font-size:12px;margin-bottom:6px;font-weight:600;}
+  .tooltip-card .t-row{display:flex;justify-content:space-between;color:var(--mist);margin-top:2px;}
+  .tooltip-card .t-row b{color:var(--foam);font-weight:500;}
+
+  #mobile-panel-toggle{display:none;position:absolute;top:14px;left:16px;z-index:6;}
+
+  /* --- argo panel --- */
+  #argo-panel{border-left:1px solid var(--panel-border);background:rgba(8,20,28,0.75);overflow-y:auto;padding:18px 16px 40px;}
+  .argo-empty{color:var(--mist);font-size:13.5px;padding:40px 10px;text-align:center;line-height:1.7;}
+  .argo-empty .ico{font-size:30px;margin-bottom:10px;}
+  .tab-row{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--panel-border);}
+  .tab-row button{background:none;border:none;color:var(--mist);font-size:13px;padding:9px 4px;margin-right:16px;border-bottom:2px solid transparent;}
+  .tab-row button.active{color:var(--tide-bright);border-color:var(--tide);}
+  .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+  .info-cell{background:rgba(255,255,255,0.035);border:1px solid var(--panel-border);border-radius:8px;padding:9px 10px;}
+  .info-cell .k{font-size:10px;color:var(--mist);font-family:'IBM Plex Mono';margin-bottom:3px;}
+  .info-cell .v{font-size:13.5px;}
+  .var-pill-row{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;}
+  .chart-box{background:rgba(255,255,255,0.03);border:1px solid var(--panel-border);border-radius:10px;padding:12px;margin-bottom:14px;height:220px;}
+  .link-row{display:flex;flex-direction:column;gap:8px;margin-top:14px;}
+  .link-btn{background:rgba(255,255,255,0.045);border:1px solid var(--panel-border);color:var(--foam);text-align:left;padding:10px 12px;border-radius:8px;font-size:13px;display:flex;justify-content:space-between;align-items:center;}
+  .link-btn:hover{background:rgba(255,255,255,0.08);}
+
+  /* --- compare view --- */
+  .compare-wrap{max-width:1100px;margin:0 auto;padding:28px 24px 60px;}
+  .compare-head{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:22px;flex-wrap:wrap;gap:14px;}
+  .compare-selectors{display:flex;gap:12px;flex-wrap:wrap;}
+  .compare-selectors .field{margin-bottom:0;min-width:150px;}
+  .eligibility-card{background:var(--panel);border:1px solid var(--panel-border);border-radius:var(--radius);padding:20px 22px;margin-bottom:22px;}
+  .elig-badge{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:20px;font-size:13px;font-weight:600;margin-bottom:14px;}
+  .elig-eligible{background:rgba(91,212,138,0.15);color:var(--good);}
+  .elig-partial{background:rgba(230,185,92,0.15);color:var(--alert);}
+  .elig-none{background:rgba(224,97,107,0.15);color:var(--danger);}
+  .check-list{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+  .check-item{font-size:13px;display:flex;gap:8px;align-items:flex-start;color:var(--mist);}
+  .check-item.ok b{color:var(--good);}
+  .check-item.warn b{color:var(--alert);}
+  .check-item b{margin-right:2px;}
+  .compare-cols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:22px;}
+  .compare-col{background:var(--panel);border:1px solid var(--panel-border);border-radius:var(--radius);padding:18px;text-align:center;}
+  .compare-col .cl{font-size:11px;color:var(--mist);font-family:'IBM Plex Mono';margin-bottom:10px;}
+  .compare-col .cv{font-family:'Space Grotesk';font-size:32px;font-weight:600;}
+  .compare-col.diff-pos .cv{color:var(--coral);}
+  .compare-col.diff-neg .cv{color:var(--tide-bright);}
+  .compare-col .swatch{width:100%;height:70px;border-radius:8px;margin-top:12px;}
+  .insight-strip{background:linear-gradient(135deg,rgba(34,193,201,0.1),rgba(77,139,124,0.06));border:1px solid var(--panel-border);border-radius:var(--radius);padding:16px 20px;font-size:13.5px;color:var(--mist);display:flex;align-items:center;gap:12px;}
+
+  /* --- analysis view --- */
+  .analysis-wrap{max-width:1180px;margin:0 auto;padding:28px 24px 60px;}
+  .analysis-controls{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:22px;background:var(--panel);border:1px solid var(--panel-border);border-radius:var(--radius);padding:14px 16px;}
+  .analysis-controls .field{margin-bottom:0;min-width:140px;}
+  .chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  .chart-card{background:var(--panel);border:1px solid var(--panel-border);border-radius:var(--radius);padding:16px 18px;}
+  .chart-card h4{font-size:14px;margin-bottom:12px;color:var(--foam);}
+  .chart-card .cc-inner{height:230px;}
+  @media (max-width:820px){.chart-grid{grid-template-columns:1fr;}}
+
+  /* --- quality panel section --- */
+  .quality-list{display:flex;flex-direction:column;gap:8px;margin:14px 0;}
+  .quality-row{display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.035);border:1px solid var(--panel-border);border-radius:8px;padding:9px 12px;font-size:13px;}
+  .qbadge{font-size:11px;padding:3px 9px;border-radius:12px;font-weight:600;}
+  .qgood{background:rgba(91,212,138,0.15);color:var(--good);}
+  .qwarn{background:rgba(230,185,92,0.15);color:var(--alert);}
+  .qbad{background:rgba(224,97,107,0.15);color:var(--danger);}
+  .qscore{display:flex;align-items:center;gap:16px;margin-top:16px;}
+  .qscore-ring{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk';font-weight:700;font-size:17px;flex-shrink:0;}
+
+  /* --- modals --- */
+  .modal-overlay{position:fixed;inset:0;background:rgba(2,8,12,0.72);backdrop-filter:blur(4px);z-index:100;display:none;align-items:center;justify-content:center;padding:20px;}
+  .modal-overlay.open{display:flex;}
+  .modal-box{background:#0c202c;border:1px solid var(--panel-border);border-radius:16px;max-width:520px;width:100%;max-height:85vh;overflow-y:auto;padding:26px 26px 22px;box-shadow:0 30px 70px rgba(0,0,0,0.5);}
+  .modal-box.wide{max-width:640px;}
+  .modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;}
+  .modal-close{background:none;border:none;color:var(--mist);font-size:20px;line-height:1;padding:4px;}
+  .modal-close:hover{color:var(--foam);}
+  .prov-row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13.5px;}
+  .prov-row .pk{color:var(--mist);}
+  .prov-row .pv{font-family:'IBM Plex Mono';}
+  .anomaly-flag{display:flex;gap:10px;align-items:flex-start;background:rgba(230,185,92,0.1);border:1px solid rgba(230,185,92,0.35);border-radius:10px;padding:14px;margin-top:14px;font-size:13px;color:var(--alert);}
+  .rapid-block{margin-bottom:16px;}
+  .rapid-block .rl{font-size:11px;color:var(--mist);font-family:'IBM Plex Mono';margin-bottom:6px;}
+  .rapid-obs{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px;}
+  .rapid-obs li{font-size:13.5px;padding-left:14px;position:relative;}
+  .rapid-obs li::before{content:'•';position:absolute;left:0;color:var(--tide-bright);}
+  .rapid-conclusion{background:rgba(34,193,201,0.08);border-left:3px solid var(--tide);padding:12px 14px;border-radius:0 8px 8px 0;font-size:13.5px;margin-top:14px;}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0c202c;border:1px solid var(--good);color:var(--good);padding:12px 20px;border-radius:10px;font-size:13.5px;z-index:200;display:none;box-shadow:0 10px 30px rgba(0,0,0,0.4);}
+  .toast.show{display:block;animation:toastIn .2s ease;}
+  @keyframes toastIn{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
+
+  .scroll-thin::-webkit-scrollbar{width:7px;}
+  .scroll-thin::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);border-radius:10px;}
+
+  /* =====================================================================
+     ADDITIVE RULES
+     ===================================================================== */
+  .subview{display:none;}
+  .subview.active{display:block;}
+  #subview-explore.active{display:grid;}
+
+  body.role-education [data-role="researcher"]{display:none !important;}
+  body:not(.role-education) [data-role="education-only"]{display:none !important;}
+  body.role-researcher [data-role="education-only"]{display:none !important;}
+
+  .edu-hint{position:absolute;top:60px;left:16px;right:16px;z-index:5;background:rgba(6,16,22,0.72);border:1px solid var(--panel-border);border-radius:10px;padding:10px 14px;font-size:12.5px;color:var(--mist);backdrop-filter:blur(8px);pointer-events:none;max-width:340px;}
+  .edu-hint b{color:var(--tide-bright);}
+
+  /* ---- glossary tooltips (education mode only) ---- */
+  .gloss{position:relative;display:inline-block;}
+  body.role-education .gloss{border-bottom:1px dotted var(--tide-bright);cursor:help;}
+  .gloss-tip{position:absolute;left:0;top:135%;width:200px;background:#0e2433;border:1px solid var(--tide);color:var(--foam);font-family:'Inter',sans-serif;font-weight:400;font-size:11.5px;line-height:1.45;padding:9px 11px;border-radius:8px;box-shadow:0 12px 28px rgba(0,0,0,0.45);z-index:60;opacity:0;visibility:hidden;transform:translateY(-4px);transition:opacity .15s ease, transform .15s ease;pointer-events:none;}
+  .gloss-tip::before{content:'';position:absolute;bottom:100%;left:14px;border:5px solid transparent;border-bottom-color:var(--tide);}
+  body.role-education .gloss:hover .gloss-tip,
+  body.role-education .gloss.tip-open .gloss-tip{opacity:1;visibility:visible;transform:translateY(0);}
+
+  /* ---- narrative (plain-language) readout for the RMSE card, education mode ---- */
+  .rmse-narrative{font-size:12px;color:var(--mist);line-height:1.5;max-width:190px;}
+  .rmse-narrative b{color:var(--good);}
+
+  .depth-axis-layer{position:absolute;inset:0;pointer-events:none;z-index:4;}
+  .depth-axis-layer .tick{position:absolute;left:0;transform:translateY(-50%);display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--mist);}
+  .depth-axis-layer .tick .bar{width:12px;height:1px;background:var(--panel-border);}
+
+  canvas.mini-chart{width:100%;height:100%;display:block;}
+
+  /* ---- MoES features: before/after toggle, RMSE card, depth-slice correction ---- */
+  .viewer-topbar-left{display:flex;flex-direction:column;gap:8px;align-items:flex-start;}
+  .viewer-topbar-right{display:flex;flex-direction:column;gap:8px;align-items:flex-end;}
+  .ab-toggle-row{display:flex;gap:6px;pointer-events:auto;}
+  .ab-toggle-row button{background:rgba(6,16,22,0.72);border:1px solid var(--panel-border);color:var(--mist);font-size:12px;padding:8px 12px;border-radius:8px;backdrop-filter:blur(8px);}
+  .ab-toggle-row button.active{color:var(--tide-bright);border-color:var(--tide);background:rgba(34,193,201,0.14);}
+  .rmse-card .rmse-row{display:flex;align-items:baseline;gap:7px;margin-top:2px;}
+  .rmse-card .rmse-before{color:var(--mist);text-decoration:line-through;font-size:12.5px;transition:opacity .2s ease;}
+  .rmse-card .rmse-after{color:var(--good);font-weight:700;font-size:14px;transition:opacity .2s ease;}
+  .rmse-card .rmse-drop{font-size:10.5px;color:var(--good);margin-top:5px;}
+  .buoy-ref-tag{position:absolute;pointer-events:none;background:rgba(6,16,22,0.85);border:1px solid var(--tide);border-radius:8px;padding:4px 8px;font-size:10.5px;font-family:'IBM Plex Mono';color:var(--tide-bright);z-index:6;transform:translate(-50%,-140%);white-space:nowrap;}
+  .depth-correction-row{margin-top:8px;}
+
+  /* ---- NEW: location + time input styling ---- */
+  input[type=number], input[type=date]{width:100%;background:rgba(255,255,255,0.045);border:1px solid var(--panel-border);color:var(--foam);padding:8px 9px;border-radius:8px;font-size:12.5px;font-family:'IBM Plex Mono';}
+  input[type=number]:focus, input[type=date]:focus{outline:2px solid var(--tide);outline-offset:1px;}
+  input[type=date]::-webkit-calendar-picker-indicator{filter:invert(0.8);cursor:pointer;}
+  .field-row{display:flex;gap:8px;margin-bottom:12px;}
+  .field-row > div{flex:1;}
+  .field-row label{display:block;font-size:11.5px;color:var(--mist);margin-bottom:5px;}
+  .region-readout{font-size:11.5px;color:var(--tide-bright);font-family:'IBM Plex Mono';margin-top:-4px;margin-bottom:12px;}
+  .context-strip{background:var(--panel);border:1px solid var(--panel-border);border-radius:10px;padding:10px 16px;font-size:12.5px;color:var(--mist);font-family:'IBM Plex Mono';margin-bottom:18px;display:flex;gap:18px;flex-wrap:wrap;}
+  .context-strip b{color:var(--tide-bright);font-weight:600;}
+  .readonly-badge{width:100%;background:rgba(255,255,255,0.03);border:1px solid var(--panel-border);color:var(--mist);padding:9px 10px;border-radius:8px;font-size:13px;}
+
+  /* ---- NEW: region map ---- */
+  #region-map{height:148px;border-radius:10px;overflow:hidden;border:1px solid var(--panel-border);background:#dfe6e9;}
+  #region-map .leaflet-control-attribution{background:rgba(255,255,255,0.82) !important;color:#5a6b74 !important;font-size:8.5px !important;}
+  #region-map .leaflet-control-attribution a{color:#5a6b74 !important;}
+  #region-map .leaflet-control-zoom a{background:rgba(255,255,255,0.92) !important;color:#233238 !important;border-color:rgba(0,0,0,0.12) !important;}
+  .map-hint{font-size:11px;color:var(--mist);margin:6px 0 10px;font-family:'IBM Plex Mono';}
+  .map-hint b{color:var(--tide-bright);}
+  .region-pin{width:14px;height:14px;border-radius:50% 50% 50% 0;background:var(--tide-bright);border:2px solid #04141a;transform:rotate(-45deg);box-shadow:0 0 10px rgba(94,232,224,0.8);}
+
+  /* ---- NEW: compass / orientation gizmo (bottom-right of 3D viewer) ---- */
+  .compass-widget{position:absolute;bottom:64px;right:20px;z-index:6;width:64px;height:64px;cursor:pointer;}
+  .compass-ring{position:relative;width:64px;height:64px;border-radius:50%;background:rgba(6,16,22,0.78);border:1px solid var(--panel-border);backdrop-filter:blur(8px);transition:transform .08s linear;box-shadow:0 6px 18px rgba(0,0,0,0.35);}
+  .compass-widget:hover .compass-ring{border-color:var(--tide);}
+  .compass-tick{position:absolute;font-family:'IBM Plex Mono';font-size:9.5px;color:var(--mist);}
+  .compass-tick.n{top:4px;left:50%;transform:translateX(-50%);color:var(--tide-bright);font-weight:700;}
+  .compass-tick.s{bottom:4px;left:50%;transform:translateX(-50%);}
+  .compass-tick.e{right:5px;top:50%;transform:translateY(-50%);}
+  .compass-tick.w{left:5px;top:50%;transform:translateY(-50%);}
+  .compass-cube{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:22px;height:22px;}
+  .compass-cube svg{width:100%;height:100%;}
+  .compass-label{position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);font-size:9.5px;color:var(--mist);font-family:'IBM Plex Mono';white-space:nowrap;}
+</style>
+</head>
+<body>
+
+<div class="view active" id="view-app">
+
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="brand"><img class="brand-mark" src="data:image/png;base64,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" alt="SagarDrishti logo">SagarDrishti</div>
+      <div class="topbar-nav">
+        <button class="active" data-target="explore">Explore</button>
+        <button data-target="compare">Compare</button>
+        <button data-target="analysis" data-role="researcher">Analysis</button>
+        <button id="nav-about">About</button>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="status-pill"><span class="status-dot"></span><span id="role-status-text">Live data &middot; synced</span></div>
+      <button class="avatar" id="avatar-initial" title="Sign out">R</button>
+    </div>
+  </div>
+
+  <!-- ---- EXPLORE ---- -->
+  <div class="subview explore-grid active" id="subview-explore">
+
+    <div id="control-panel" class="scroll-thin">
+      <div class="panel-section">
+        <div class="panel-label">LOCATION</div>
+        <div class="field">
+          <label>Ocean basin (preset)</label>
+          <select id="select-basin">
+            <option value="bob">Bay of Bengal</option>
+            <option value="as">Arabian Sea</option>
+            <option value="eio">Equatorial Indian Ocean</option>
+            <option value="custom">Custom region&hellip;</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Region map <span style="color:var(--tide-bright);">&middot; tap to set a point</span></label>
+          <div id="region-map"></div>
+          <div class="map-hint" id="map-click-readout">Clicked point: <b>&mdash;</b></div>
+        </div>
+        <div class="field-row">
+          <div><label>Min lat (&deg;N)</label><input type="number" id="in-lat-min" step="0.1" value="5"></div>
+          <div><label>Max lat (&deg;N)</label><input type="number" id="in-lat-max" step="0.1" value="15"></div>
+        </div>
+        <div class="field-row">
+          <div><label>Min lon (&deg;E)</label><input type="number" id="in-lon-min" step="0.1" value="80"></div>
+          <div><label>Max lon (&deg;E)</label><input type="number" id="in-lon-max" step="0.1" value="90"></div>
+        </div>
+        <div class="region-readout" id="region-readout">Box: 5&deg;N&ndash;15&deg;N, 80&deg;E&ndash;90&deg;E</div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-label">MODEL</div>
+        <div class="field">
+          <label>Dataset</label>
+          <select id="select-model">
+            <option value="HYCOM">HYCOM (demo)</option>
+            <option value="Copernicus">Copernicus Marine</option>
+            <option disabled>ROMS (coming soon)</option>
+            <option disabled>NEMO (coming soon)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-label">VARIABLE</div>
+        <div class="chip-row" id="variable-chips">
+          <button class="chip active var-chip" data-var="0">Temperature</button>
+          <button class="chip var-chip" data-var="1">Salinity</button>
+          <button class="chip var-chip" data-var="2">Chlorophyll</button>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-label">TIME RANGE</div>
+        <div class="field-row">
+          <div><label>Start date</label><input type="date" id="in-date-start" value="2025-01-01"></div>
+          <div><label>End date</label><input type="date" id="in-date-end" value="2025-01-07"></div>
+        </div>
+        <div class="readout"><span id="time-label" class="val mono">10 Aug</span><span class="status-tag status-exact" id="time-status">EXACT</span></div>
+        <div class="slider-wrap">
+          <input type="range" id="time-slider" min="0" max="6" step="1" value="0">
+          <div class="slider-scale"><span id="time-scale-start">start</span><span id="time-scale-end">end</span></div>
+        </div>
+        <div class="transport-row">
+          <button id="btn-time-play">&#9654; Play</button>
+          <button id="btn-time-back">&#9198; Back</button>
+          <button id="btn-time-reset">&#8635; Reset</button>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-label">DEPTH</div>
+        <div class="slider-wrap">
+          <input type="range" id="depth-slider" min="0" max="1000" step="10" value="340">
+          <div class="slider-scale"><span>0 m</span><span>1000 m</span></div>
+        </div>
+        <div class="readout">
+          <span class="val" id="depth-readout">340 m</span>
+          <span class="status-tag status-interp" id="depth-status">Interpolated</span>
+        </div>
+        <div class="readout depth-correction-row">
+          <span class="val" id="depth-correction-val">+0.00&deg;C</span>
+          <span class="status-tag status-interp" id="depth-correction-tag">No correction (raw)</span>
+        </div>
+        <div style="font-size:11px;color:var(--mist);margin-top:5px;" data-role="education-only">
+          <span class="gloss">EnOI<span class="gloss-tip">Ensemble Optimal Interpolation &mdash; the method that nudges the raw model toward what real buoys are actually measuring.</span></span> also nudges temperatures at this depth, based on how closely they've historically tracked the surface.
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-label">LIVE DATA</div>
+        <div style="font-size:11px;color:var(--mist);margin-bottom:8px;">Fetch real INCOIS Argo floats (+ Copernicus model) for the region, dates and depth set above.</div>
+        <div class="toggle-row" style="margin-bottom:10px;">
+          <span>Include model comparison</span>
+          <div class="switch on" id="toggle-include-model"></div>
+        </div>
+        <button class="btn-ghost" id="btn-fetch-live" style="width:100%;border:1px solid var(--panel-border);border-radius:8px;padding:10px;font-size:13.5px;background:rgba(34,193,201,0.14);color:var(--tide-bright);">Fetch live data</button>
+        <div style="font-size:11px;color:var(--mist);margin-top:8px;" id="fetch-live-status"></div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-label">VISUALIZATION</div>
+        <div class="field">
+          <label>Vertical exaggeration <span class="mono" id="vexag-val" style="color:var(--tide-bright)">1&times;</span></label>
+          <input type="range" id="sel-vexag" min="0" max="3" step="1" value="0">
+        </div>
+        <div class="field">
+          <label>Opacity <span class="mono" id="opacity-val" style="color:var(--tide-bright)">100%</span></label>
+          <input type="range" id="sel-opacity" min="20" max="100" step="5" value="100">
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-label">PLAYBACK</div>
+        <div style="font-size:11px;color:var(--mist);margin-bottom:6px;">Float ascent/descent animation</div>
+        <div class="transport-row">
+          <button id="btn-step-back" title="Step back">&#9198;</button>
+          <button id="btn-toggle-play" class="play" title="Play / pause">&#9208;</button>
+          <button id="btn-step-fwd" title="Step forward">&#9197;</button>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-label">LAYERS</div>
+        <div class="viz-toggle-row">
+          <div class="toggle-row"><span>Current arrows</span><div class="switch on" data-toggle="currents"></div></div>
+          <div class="toggle-row"><span>Depth grid</span><div class="switch on" data-toggle="grid"></div></div>
+          <div class="toggle-row" data-role="researcher"><span>Show QC-flagged only</span><div class="switch" data-toggle="qcOnly"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="viewer-wrap">
+      <button id="mobile-panel-toggle" class="icon-btn">&#9776;</button>
+
+      <div class="viewer-topbar">
+        <div class="viewer-topbar-left">
+          <div class="viewer-badge">
+            <div class="k">REGION</div>
+            <div class="v" id="badge-basin" style="font-size:12px;">Bay of Bengal</div>
+          </div>
+          <div class="viewer-badge">
+            <div class="k">MODEL &middot; DATE</div>
+            <div class="v" id="badge-model-time" style="font-size:12px;">HYCOM &middot; 10 Aug</div>
+          </div>
+          <div class="viewer-badge rmse-card" id="rmse-card">
+            <div class="k"><span class="gloss">RMSE<span class="gloss-tip">Root Mean Square Error &mdash; the average gap between the model's guess and the real buoy reading. Lower is better.</span></span> VS ARGO</div>
+            <div class="rmse-row" data-role="researcher">
+              <span class="rmse-before" id="rmse-before-val">1.42&deg;C</span>
+              <span style="color:var(--mist);">&rarr;</span>
+              <span class="rmse-after" id="rmse-after-val">0.38&deg;C</span>
+            </div>
+            <div class="rmse-drop" data-role="researcher" id="rmse-drop-val">&minus;73% after EnOI</div>
+            <div class="rmse-narrative" data-role="education-only" id="rmse-narrative-val">The corrected model is now within <b>0.38&deg;C</b> of the real buoy reading &mdash; a strong match.</div>
+          </div>
+        </div>
+        <div class="viewer-topbar-right">
+          <div class="view-mode-row">
+            <button class="active" data-viewmode="cross">3D Cross-Section</button>
+            <button data-viewmode="top">Top-Down</button>
+          </div>
+          <div class="ab-toggle-row">
+            <button class="active" id="ab-view-a">View A &middot; Raw Model</button>
+            <button id="ab-view-b">View B &middot; Assimilated (<span class="gloss">EnOI<span class="gloss-tip">Ensemble Optimal Interpolation &mdash; the method that nudges the raw model toward what real buoys are actually measuring.</span></span>)</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="edu-hint" data-role="education-only">
+        Each colored band is a <b>temperature layer</b>. The dot ringed in cyan is a real ocean robot (Argo buoy) — toggle View A / View B to see the model correct itself around it.
+      </div>
+
+      <button class="rapid-btn" id="btn-rapid">&#9889; Rapid Insights</button>
+
+      <canvas id="viewer-canvas"></canvas>
+      <div class="depth-axis-layer" id="depth-axis-layer"></div>
+      <div class="tooltip-card" id="float-tooltip" style="display:none;"></div>
+      <div class="buoy-ref-tag" id="buoy-ref-tag" style="display:none;">Reference Argo Buoy</div>
+
+      <div class="legend">
+        <div class="k mono" style="color:var(--mist);font-size:11px;" id="legend-title">Temperature</div>
+        <div class="legend-bar" id="legend-bar" style="background:linear-gradient(90deg,#e8895b,#e6b95c,#4d8b7c,#22c1c9,#0a1a26);"></div>
+        <div class="legend-labels"><span id="legend-min">Warm</span><span id="legend-max">Cold</span></div>
+      </div>
+
+      <div class="compass-widget" id="compass-widget" title="Click to reset orientation">
+        <div class="compass-ring" id="compass-ring">
+          <span class="compass-tick n">N</span>
+          <span class="compass-tick e">E</span>
+          <span class="compass-tick s">S</span>
+          <span class="compass-tick w">W</span>
+          <span class="compass-cube">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2 L21 7 V17 L12 22 L3 17 V7 Z" stroke="#5be8e0" stroke-width="1.3" fill="rgba(34,193,201,0.16)"/>
+              <path d="M12 2 V12 M12 12 L21 7 M12 12 L3 7" stroke="#5be8e0" stroke-width="1"/>
+            </svg>
+          </span>
+        </div>
+        <span class="compass-label">Orbit</span>
+      </div>
+
+      <div class="viewer-actions">
+        <button class="icon-btn" id="btn-reset-cam" title="Reset camera">&#8635;</button>
+        <button class="icon-btn" id="btn-argo-toggle" title="Float details">&#8505;</button>
+        <button class="icon-btn" id="btn-fullscreen" title="Fullscreen">&#9974;</button>
+      </div>
+    </div>
+
+    <div id="argo-panel" class="scroll-thin">
+      <div id="argo-empty-state" class="argo-empty">
+        <div class="ico">◎</div>
+        Select a float in the 3D view<br>to see its profile and metadata.
+      </div>
+
+      <div id="argo-detail" style="display:none;">
+        <div class="tab-row">
+          <button class="active" data-argotab="profile">Profile</button>
+          <button data-argotab="trajectory">Trajectory</button>
+          <button data-argotab="metadata">Metadata</button>
+        </div>
+
+        <div class="argo-tab-content" id="argotab-profile">
+          <div class="info-grid">
+            <div class="info-cell"><div class="k">FLOAT ID</div><div class="v" id="d-id">&mdash;</div></div>
+            <div class="info-cell"><div class="k">STATUS</div><div class="v" id="d-status">&mdash;</div></div>
+            <div class="info-cell"><div class="k">CYCLE</div><div class="v" id="d-cycle">&mdash;</div></div>
+            <div class="info-cell"><div class="k">PARK DEPTH</div><div class="v" id="d-park">&mdash;</div></div>
+            <div class="info-cell" style="grid-column:1/-1;"><div class="k">POSITION (LAT, LON)</div><div class="v" id="d-position">&mdash;</div></div>
+          </div>
+          <div class="var-pill-row">
+            <span class="chip active">Temperature</span>
+            <span class="chip">Salinity</span>
+          </div>
+          <div class="chart-box"><canvas class="mini-chart" id="profile-chart"></canvas></div>
+
+          <div class="panel-section" data-role="researcher">
+            <div class="panel-label">DATA QUALITY</div>
+            <div class="quality-list">
+              <div class="quality-row"><span>Pressure sensor</span><span class="qbadge qgood">Good</span></div>
+              <div class="quality-row"><span>Temperature sensor</span><span class="qbadge qgood">Good</span></div>
+              <div class="quality-row"><span>Salinity sensor</span><span class="qbadge qwarn" id="qc-salinity">Probable</span></div>
+            </div>
+          </div>
+
+          <div class="link-row">
+            <button class="link-btn" id="btn-provenance">View data provenance <span>&rsaquo;</span></button>
+            <button class="link-btn" id="btn-download-netcdf" data-role="researcher">Download NetCDF <span>&rsaquo;</span></button>
+            <button class="link-btn" id="btn-goto-compare">Compare with model <span>&rsaquo;</span></button>
+          </div>
+        </div>
+
+        <div class="argo-tab-content" id="argotab-trajectory" style="display:none;">
+          <div class="chart-box"><canvas class="mini-chart" id="trajectory-chart"></canvas></div>
+          <p style="font-size:12.5px;color:var(--mist);margin-bottom:4px;">Drift path plotted as longitude (x) vs latitude (y); white dot is the most recent fix.</p>
+          <p style="font-size:12px;color:var(--tide-bright);font-family:'IBM Plex Mono';" id="trajectory-meta">&mdash;</p>
+        </div>
+
+        <div class="argo-tab-content" id="argotab-metadata" style="display:none;">
+          <div class="info-grid">
+            <div class="info-cell"><div class="k"><span class="gloss">WMO ID<span class="gloss-tip">World Meteorological Organization ID &mdash; a unique serial number assigned to this specific Argo float.</span></span></div><div class="v" id="m-wmo">&mdash;</div></div>
+            <div class="info-cell"><div class="k">PLATFORM</div><div class="v">APEX / Iridium</div></div>
+            <div class="info-cell"><div class="k">DEPLOYED</div><div class="v" id="m-deployed">&mdash;</div></div>
+            <div class="info-cell"><div class="k">LAST TX</div><div class="v" id="m-lasttx">&mdash;</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ---- COMPARE (model vs observation) ---- -->
+  <div class="subview compare-wrap" id="subview-compare">
+    <div class="compare-head">
+      <div>
+        <h2>Model vs observation</h2>
+        <p style="color:var(--mist);font-size:13.5px;margin-top:4px;">Check the INCOIS model value against a real Argo reading before trusting the gap between them.</p>
+      </div>
+      <div class="compare-selectors">
+        <div class="field"><label>Observation</label><select id="cmp-float"></select></div>
+        <div class="field"><label>Variable</label>
+          <select id="cmp-variable">
+            <option value="TEMP">Temperature</option>
+            <option value="PSAL">Salinity</option>
+          </select>
+        </div>
+        <div class="field"><label>Depth</label><select id="cmp-depth"></select></div>
+      </div>
+    </div>
+
+    <div class="context-strip" id="cmp-context-strip"></div>
+
+    <div class="eligibility-card" id="eligibility-card"></div>
+    <div class="compare-cols" id="compare-cols"></div>
+    <div class="insight-strip" id="compare-insight"></div>
+
+    <div style="display:flex;gap:10px;margin-top:20px;">
+      <button class="link-btn" style="width:auto;padding:10px 16px;" id="btn-cmp-provenance">View data provenance</button>
+    </div>
+  </div>
+
+  <!-- ---- ANALYSIS (researcher only) ---- -->
+  <div class="subview analysis-wrap" id="subview-analysis" data-role="researcher">
+    <h2 style="margin-bottom:6px;">Analysis</h2>
+    <p style="color:var(--mist);font-size:13.5px;margin-bottom:18px;">Interactive charts comparing the INCOIS model against real Argo observations.</p>
+    <div class="analysis-controls">
+      <div class="field"><label>Region (set in Explore)</label><div class="readonly-badge" id="an-region-display">Bay of Bengal</div></div>
+      <div class="field"><label>Observation</label><select id="an-float"></select></div>
+      <div class="field"><label>Time</label><select id="an-day"></select></div>
+      <div class="field" style="display:flex;align-items:flex-end;">
+        <button id="btn-update-charts" style="padding:9px 16px;border-radius:8px;border:1px solid var(--panel-border);background:rgba(34,193,201,0.18);color:var(--tide-bright);font-size:13px;font-weight:600;">Update charts</button>
+      </div>
+    </div>
+    <div class="chart-grid">
+      <div class="chart-card"><h4>Temperature vs depth</h4><div class="cc-inner"><canvas id="chart-temp-depth"></canvas></div></div>
+      <div class="chart-card"><h4>Salinity vs depth</h4><div class="cc-inner"><canvas id="chart-sal-depth"></canvas></div></div>
+      <div class="chart-card"><h4>Model vs observation (temperature)</h4><div class="cc-inner"><canvas id="chart-model-obs"></canvas></div></div>
+      <div class="chart-card"><h4>Difference vs depth</h4><div class="cc-inner"><canvas id="chart-diff-depth"></canvas></div></div>
+      <div class="chart-card" style="grid-column:1/-1;"><h4>Temperature vs time (50 m)</h4><div class="cc-inner"><canvas id="chart-var-time"></canvas></div></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ===================== MODALS ===================== -->
+<div class="modal-overlay" id="modal-provenance">
+  <div class="modal-box">
+    <div class="modal-head"><h3>Data provenance</h3><button class="modal-close" data-close="modal-provenance">&times;</button></div>
+    <div class="prov-row"><span class="pk">Source</span><span class="pv" id="prov-source">Argo GDAC (ifremer mirror)</span></div>
+    <div class="prov-row"><span class="pk">Platform</span><span class="pv" id="prov-platform">APEX float</span></div>
+    <div class="prov-row"><span class="pk"><span class="gloss">WMO ID<span class="gloss-tip">World Meteorological Organization ID &mdash; a unique serial number assigned to this specific Argo float.</span></span></span><span class="pv" id="prov-wmo">&mdash;</span></div>
+    <div class="prov-row"><span class="pk"><span class="gloss">QC flag<span class="gloss-tip">Quality Control flag &mdash; shows whether a reading passed automatic checks (Good), is uncertain (Probable), or looks unreliable (Bad).</span></span></span><span class="pv">1 &middot; Good</span></div>
+    <div class="prov-row"><span class="pk">Last updated</span><span class="pv" id="prov-updated">10 Aug 2026, 06:12 UTC</span></div>
+    <div class="anomaly-flag">&#9888; One salinity reading near 480m is flagged probable — shown greyed in the profile chart.</div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-rapid">
+  <div class="modal-box wide">
+    <div class="modal-head"><h3>Rapid insights</h3><button class="modal-close" data-close="modal-rapid">&times;</button></div>
+    <div class="rapid-block">
+      <div class="rl" id="rapid-context-line">CURRENT VIEW &middot; BAY OF BENGAL &middot; TEMPERATURE</div>
+      <ul class="rapid-obs">
+        <li>Surface layer holds above 27&deg;C down to roughly 40m.</li>
+        <li>A sharp <span class="gloss">thermocline<span class="gloss-tip">The depth band where temperature drops fastest as you go deeper &mdash; the boundary between the warm surface layer and the cold deep ocean.</span></span> sits between 80&ndash;150m.</li>
+        <li data-role="researcher"><span class="gloss">EnOI<span class="gloss-tip">Ensemble Optimal Interpolation &mdash; the method that nudges the raw model toward what real buoys are actually measuring.</span></span> assimilation cuts <span class="gloss">RMSE<span class="gloss-tip">Root Mean Square Error &mdash; the average gap between the model's guess and the real buoy reading. Lower is better.</span></span> against the reference buoy from 1.42&deg;C to 0.38&deg;C.</li>
+        <li data-role="education-only">The corrected model now lines up with the real buoy to within about <b>0.4&deg;C</b> &mdash; a big improvement on the raw model's 1.4&deg;C gap.</li>
+      </ul>
+    </div>
+    <div class="rapid-conclusion">This is a typical pre-monsoon thermal structure for the region — a warm, well-mixed surface layer sitting over a compressed thermocline, now well aligned with in-situ observations after assimilation.</div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-about">
+  <div class="modal-box">
+    <div class="modal-head"><h3>About Sagar Drishti</h3><button class="modal-close" data-close="modal-about">&times;</button></div>
+    <p style="color:var(--mist);font-size:13.5px;line-height:1.7;">
+      <b style="color:var(--foam);">Sagar Drishti</b> (<span class="mono" style="color:var(--tide-bright);">"ocean vision"</span>) is a 3D ocean data visualization platform built for INCOIS
+      (Indian National Centre for Ocean Information Services). It renders the water column as an
+      interactive cross-section — real Argo float positions and profiles alongside gridded
+      temperature, salinity and chlorophyll fields.
+    </p>
+    <p style="color:var(--mist);font-size:13.5px;line-height:1.7;margin-top:10px;">
+      The <b style="color:var(--foam);">View A / View B</b> toggle shows what EnOI data assimilation
+      actually does: it corrects the raw ocean model to align with real in-situ buoy readings,
+      measurably cutting RMSE against observations.
+    </p>
+    <p style="color:var(--mist);font-size:13.5px;line-height:1.7;margin-top:10px;">
+      Pipeline: <span class="mono">INCOIS ERDDAP (Argo + model grids) &rarr; FastAPI backend &rarr; 3D viewer &rarr; Compare &amp; Analysis.</span>
+    </p>
+    <p style="color:var(--mist);font-size:12px;line-height:1.6;margin-top:14px;border-top:1px solid var(--panel-border);padding-top:12px;">
+      Role: <b style="color:var(--foam);" id="about-role-text">&mdash;</b> &middot; Model vs. observation comparisons and depth/time/variable data shown here are illustrative unless connected to a live backend.
+    </p>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+/* ===================================================================
+   ROLE GUARD
+   =================================================================== */
+const role = localStorage.getItem('SagarDrishti_role');
+if (!role){
+  window.location.href = 'index.html';
+}
+document.body.classList.add(role === 'researcher' ? 'role-researcher' : 'role-education');
+document.getElementById('avatar-initial').textContent = role === 'researcher' ? 'R' : 'E';
+document.getElementById('role-status-text').textContent = role === 'researcher'
+  ? 'Live data \u00b7 analytics session'
+  : 'Live data \u00b7 guided session';
+document.getElementById('avatar-initial').addEventListener('click', ()=>{
+  localStorage.removeItem('SagarDrishti_role');
+  window.location.href = 'index.html';
+});
+
+/* ===================================================================
+   GLOSSARY TOOLTIPS (education mode)
+   ".gloss" terms show their definition on hover for mouse users; this
+   adds tap-to-open/close for touch devices, and only does anything in
+   education mode (researcher mode's terms stay plain, inert text).
+   =================================================================== */
+document.querySelectorAll('.gloss').forEach(term=>{
+  term.addEventListener('click', (e)=>{
+    if (!document.body.classList.contains('role-education')) return;
+    e.stopPropagation();
+    const wasOpen = term.classList.contains('tip-open');
+    document.querySelectorAll('.gloss.tip-open').forEach(t=>t.classList.remove('tip-open'));
+    if (!wasOpen) term.classList.add('tip-open');
+  });
+});
+document.addEventListener('click', ()=>{
+  document.querySelectorAll('.gloss.tip-open').forEach(t=>t.classList.remove('tip-open'));
+});
+
+/* ===================================================================
+   SHARED CONSTANTS
+   =================================================================== */
+const DEPTH_LEVELS = [0, 50, 100, 200, 500, 1000];
+
+/* ---- NEW: region presets (lat/lon boxes) ---- */
+const REGION_PRESETS = {
+  bob:    { name:'Bay of Bengal',            minLat:5,  maxLat:15, minLon:80, maxLon:90 },
+  as:     { name:'Arabian Sea',              minLat:8,  maxLat:20, minLon:60, maxLon:72 },
+  eio:    { name:'Equatorial Indian Ocean',  minLat:-5, maxLat:5,  minLon:70, maxLon:90 },
+};
+
+/* Fractional (0..1) position of each float within the current region box,
+   used to derive both its real lat/lon (for display) and its 3D scene
+   position (so floats move when the region box changes). */
+const FLOAT_FRACS = [
+  { fLat:0.68, fLon:0.62 },
+  { fLat:0.30, fLon:0.22 },
+  { fLat:0.78, fLon:0.48 },
+];
+
+function seededSeries(seed, n, base, spread){
+  let s = seed;
+  const rnd = () => { s = (s*9301+49297) % 233280; return s/233280; };
+  const out = [];
+  let v = base;
+  for(let i=0;i<n;i++){ v += (rnd()-0.5)*spread; out.push(v); }
+  return out;
+}
+function tinyRng(seed){
+  let s = seed;
+  return () => { s = (s*9301+49297) % 233280; return s/233280; };
+}
+
+/* ===================================================================
+   STATE
+   =================================================================== */
+const state = {
+  variable: 0,
+  playing: true,
+  tNorm: 0.3,
+  selectedFloatIdx: null,
+  showCurrents: true,
+  showGrid: true,
+  abTarget: 0,
+  abProgress: 0,
+  model: 'HYCOM',
+  timeIdx: 0,
+  playingTime: false,
+  timeTimer: null,
+  vexag: 1,
+  opacity: 1,
+  /* NEW: user-selected region + timeline, filled in by initLocationTimeControls() */
+  region: { key:'bob', name:'Bay of Bengal', minLat:5, maxLat:15, minLon:80, maxLon:90 },
+  timeline: { start:null, end:null, dates:[], labels:[] },
+};
+
+/* ===================================================================
+   NEW — LOCATION (lat/lon) CONTROLS
+   =================================================================== */
+const selBasin   = document.getElementById('select-basin');
+const inLatMin   = document.getElementById('in-lat-min');
+const inLatMax   = document.getElementById('in-lat-max');
+const inLonMin   = document.getElementById('in-lon-min');
+const inLonMax   = document.getElementById('in-lon-max');
+const regionReadout = document.getElementById('region-readout');
+
+function fmtDeg(v, posLetter, negLetter){
+  const letter = v >= 0 ? posLetter : negLetter;
+  return Math.abs(v).toFixed(1) + '\u00b0' + letter;
+}
+function regionLabelFor(r){
+  return fmtDeg(r.minLat,'N','S') + '\u2013' + fmtDeg(r.maxLat,'N','S') + ', '
+       + fmtDeg(r.minLon,'E','W') + '\u2013' + fmtDeg(r.maxLon,'E','W');
+}
+function refreshRegionReadout(){
+  regionReadout.textContent = 'Box: ' + regionLabelFor(state.region);
+}
+function applyRegionToInputs(r){
+  inLatMin.value = r.minLat;
+  inLatMax.value = r.maxLat;
+  inLonMin.value = r.minLon;
+  inLonMax.value = r.maxLon;
+}
+function setRegion(r){
+  state.region = r;
+  refreshRegionReadout();
+  updateRegionBadge();
+  repositionFloats();
+  if (typeof renderCompare === 'function') renderCompare();
+  if (typeof updateRegionMapRect === 'function') updateRegionMapRect();
+}
+function applyRegionPreset(key){
+  const preset = REGION_PRESETS[key];
+  if (!preset) return;
+  applyRegionToInputs(preset);
+  setRegion({ key, name:preset.name, minLat:preset.minLat, maxLat:preset.maxLat, minLon:preset.minLon, maxLon:preset.maxLon });
+}
+function readRegionFromInputs(){
+  let minLat = parseFloat(inLatMin.value), maxLat = parseFloat(inLatMax.value);
+  let minLon = parseFloat(inLonMin.value), maxLon = parseFloat(inLonMax.value);
+  if (isNaN(minLat)) minLat = -90; if (isNaN(maxLat)) maxLat = 90;
+  if (isNaN(minLon)) minLon = -180; if (isNaN(maxLon)) maxLon = 180;
+  if (minLat > maxLat){ const t=minLat; minLat=maxLat; maxLat=t; }
+  if (minLon > maxLon){ const t=minLon; minLon=maxLon; maxLon=t; }
+  return { minLat, maxLat, minLon, maxLon };
+}
+selBasin.addEventListener('change', ()=>{
+  if (selBasin.value === 'custom'){
+    setRegion(Object.assign({ key:'custom', name:'Custom region' }, readRegionFromInputs()));
+  } else {
+    applyRegionPreset(selBasin.value);
+  }
+});
+[inLatMin, inLatMax, inLonMin, inLonMax].forEach(inp=>{
+  inp.addEventListener('change', ()=>{
+    selBasin.value = 'custom';
+    setRegion(Object.assign({ key:'custom', name:'Custom region' }, readRegionFromInputs()));
+  });
+});
+function updateRegionBadge(){
+  const label = state.region.key === 'custom' ? ('Custom \u00b7 ' + regionLabelFor(state.region)) : state.region.name;
+  document.getElementById('badge-basin').textContent = label;
+  const disp = document.getElementById('an-region-display');
+  if (disp) disp.textContent = label;
+}
+
+/* ===================================================================
+   NEW — REGION MAP (Leaflet). Click anywhere on the map to read off
+   that point's lat/lon and re-center the current boundary box on it
+   (keeping the same box size), which drives every other view.
+   =================================================================== */
+let regionMap = null, regionMapRect = null, regionMapPin = null;
+function initRegionMap(){
+  const el = document.getElementById('region-map');
+  if (!el || typeof L === 'undefined') return;
+  const r = state.region;
+  regionMap = L.map(el, { zoomControl:true, attributionControl:true })
+    .setView([(r.minLat+r.maxLat)/2, (r.minLon+r.maxLon)/2], 4);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    subdomains:'abc', maxZoom:19, attribution:'&copy; OpenStreetMap contributors'
+  }).addTo(regionMap);
+  regionMapRect = L.rectangle([[r.minLat,r.minLon],[r.maxLat,r.maxLon]], {
+    color:'#1a9aa1', weight:1.5, fillColor:'#22c1c9', fillOpacity:0.16
+  }).addTo(regionMap);
+  const pinIcon = L.divIcon({ className:'', html:'<div class="region-pin"></div>', iconSize:[14,14], iconAnchor:[7,14] });
+  regionMap.on('click', (e)=>{
+    const { lat, lng } = e.latlng;
+    if (regionMapPin) regionMap.removeLayer(regionMapPin);
+    regionMapPin = L.marker([lat, lng], { icon: pinIcon }).addTo(regionMap);
+    document.getElementById('map-click-readout').innerHTML =
+      'Clicked point: <b>' + fmtLatLon(lat, lng) + '</b>';
+    // Re-center the existing boundary box on the clicked point, keeping its span.
+    const cur = readRegionFromInputs();
+    const halfLat = (cur.maxLat - cur.minLat) / 2 || 5;
+    const halfLon = (cur.maxLon - cur.minLon) / 2 || 5;
+    const next = { minLat: +(lat-halfLat).toFixed(2), maxLat: +(lat+halfLat).toFixed(2),
+                   minLon: +(lng-halfLon).toFixed(2), maxLon: +(lng+halfLon).toFixed(2) };
+    applyRegionToInputs(next);
+    selBasin.value = 'custom';
+    setRegion(Object.assign({ key:'custom', name:'Custom region' }, next));
+  });
+}
+function updateRegionMapRect(){
+  if (!regionMap || !regionMapRect) return;
+  const r = state.region;
+  regionMapRect.setBounds([[r.minLat,r.minLon],[r.maxLat,r.maxLon]]);
+  regionMap.panTo([(r.minLat+r.maxLat)/2, (r.minLon+r.maxLon)/2], { animate:true });
+}
+initRegionMap();
+
+/* ===================================================================
+   NEW — TIME RANGE (start/end date) CONTROLS
+   =================================================================== */
+const inDateStart = document.getElementById('in-date-start');
+const inDateEnd   = document.getElementById('in-date-end');
+const MAX_TIME_POINTS = 12;
+
+function parseDateInput(str, fallback){
+  if (!str) return fallback;
+  const d = new Date(str + 'T00:00:00Z');
+  return isNaN(d.getTime()) ? fallback : d;
+}
+function fmtShortDate(d){
+  return d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', timeZone:'UTC' });
+}
+function fmtLongDate(d){
+  return d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric', timeZone:'UTC' });
+}
+function computeTimeline(){
+  let start = parseDateInput(inDateStart.value, new Date('2025-01-01T00:00:00Z'));
+  let end   = parseDateInput(inDateEnd.value,   new Date('2025-01-07T00:00:00Z'));
+  if (end < start){ const t = start; start = end; end = t; }
+  const totalDays = Math.max(1, Math.round((end - start) / 86400000) + 1);
+  const n = Math.max(2, Math.min(totalDays, MAX_TIME_POINTS));
+  const dates = [], labels = [];
+  for (let i = 0; i < n; i++){
+    const frac = (n === 1) ? 0 : i / (n - 1);
+    const d = new Date(start.getTime() + frac * (end - start));
+    dates.push(d);
+    labels.push(fmtShortDate(d));
+  }
+  state.timeline = { start, end, dates, labels };
+  const slider = document.getElementById('time-slider');
+  slider.max = n - 1;
+  if (state.timeIdx > n - 1) state.timeIdx = 0;
+  slider.value = state.timeIdx;
+  document.getElementById('time-scale-start').textContent = fmtShortDate(start);
+  document.getElementById('time-scale-end').textContent = fmtShortDate(end);
+  populateAnalysisTimeSelector();
+  refreshForTimeChange();
+}
+[inDateStart, inDateEnd].forEach(inp=> inp.addEventListener('change', computeTimeline));
+
+/* ===================================================================
+   SUBVIEW SWITCHING
+   =================================================================== */
+function showSubview(id){
+  document.querySelectorAll('.subview').forEach(v=>v.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.topbar-nav button').forEach(b=>b.classList.remove('active'));
+  const map = { 'subview-explore':'explore', 'subview-compare':'compare', 'subview-analysis':'analysis' };
+  const btn = document.querySelector(`.topbar-nav button[data-target="${map[id]}"]`);
+  if (btn) btn.classList.add('active');
+  if (id === 'subview-explore'){
+    onViewerResize();
+    if (regionMap) setTimeout(()=>regionMap.invalidateSize(), 60);
+  }
+}
+document.querySelectorAll('.topbar-nav button[data-target]').forEach(btn=>{
+  btn.addEventListener('click', ()=> showSubview('subview-' + btn.dataset.target));
+});
+
+/* ===================================================================
+   TOAST + MODALS
+   =================================================================== */
+let toastTimer = null;
+function showToast(msg, silent){
+  if (silent) return;
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-close').forEach(b=>b.addEventListener('click', ()=>closeModal(b.dataset.close)));
+document.querySelectorAll('.modal-overlay').forEach(ov=>{
+  ov.addEventListener('click', (e)=>{ if (e.target === ov) ov.classList.remove('open'); });
+});
+document.getElementById('btn-rapid').addEventListener('click', ()=>{
+  const m = legendMeta[state.variable];
+  document.getElementById('rapid-context-line').textContent =
+    'CURRENT VIEW \u00b7 ' + state.region.name.toUpperCase() + ' \u00b7 ' + m.title.toUpperCase() + ' \u00b7 ' + currentDateLabel();
+  openModal('modal-rapid');
+});
+document.getElementById('btn-provenance').addEventListener('click', ()=>openModal('modal-provenance'));
+document.getElementById('nav-about').addEventListener('click', ()=>{
+  document.getElementById('about-role-text').textContent = role === 'researcher' ? 'Researcher / Analyst' : 'Education';
+  openModal('modal-about');
+});
+
+/* ===================================================================
+   MOBILE PANEL TOGGLES
+   =================================================================== */
+document.getElementById('mobile-panel-toggle').addEventListener('click', ()=>{
+  document.getElementById('control-panel').classList.toggle('open');
+});
+document.getElementById('btn-argo-toggle').addEventListener('click', ()=>{
+  document.getElementById('argo-panel').classList.toggle('open');
+});
+
+/* ===================================================================
+   CONTROL PANEL WIRING — model / variable
+   =================================================================== */
+document.getElementById('select-model').addEventListener('change', (e)=>{
+  state.model = e.target.value;
+  updateModelTimeBadge();
+});
+
+const legendMeta = [
+  { title:'Temperature', min:'Warm', max:'Cold', gradient:'linear-gradient(90deg,#e8895b,#e6b95c,#4d8b7c,#22c1c9,#0a1a26)' },
+  { title:'Salinity', min:'Fresher', max:'Saltier', gradient:'linear-gradient(90deg,#5be8e0,#22c1c9,#4d8b7c,#0a1a26,#050d14)' },
+  { title:'Chlorophyll', min:'Low', max:'Bloom', gradient:'linear-gradient(90deg,#0a1a26,#22c1c9,#5bd48a,#c8e621,#e6b95c)' },
+];
+document.querySelectorAll('.var-chip').forEach(chip=>{
+  chip.addEventListener('click', ()=>{
+    document.querySelectorAll('.var-chip').forEach(c=>c.classList.remove('active'));
+    chip.classList.add('active');
+    state.variable = parseInt(chip.dataset.var, 10);
+    oceanUniforms.uVar.value = state.variable;
+    const m = legendMeta[state.variable];
+    document.getElementById('legend-title').textContent = m.title;
+    document.getElementById('legend-bar').style.background = m.gradient;
+    document.getElementById('legend-min').textContent = m.min;
+    document.getElementById('legend-max').textContent = m.max;
+  });
+});
+
+/* ===================================================================
+   CONTROL PANEL WIRING — time slider + playback (now date-driven)
+   =================================================================== */
+function currentDateLabel(){
+  return (state.timeline.labels && state.timeline.labels[state.timeIdx]) || '\u2014';
+}
+function updateModelTimeBadge(){
+  document.getElementById('badge-model-time').textContent = state.model + ' \u00b7 ' + currentDateLabel();
+}
+function refreshTimeReadout(){
+  document.getElementById('time-label').textContent = currentDateLabel();
+  updateModelTimeBadge();
+}
+
+/* Real RMSE (raw model vs Argo obs) across every currently loaded real
+   float, at the selected time step — replaces the static demo numbers on
+   the RMSE badge whenever Copernicus model data is loaded. */
+function computeRealRmse(){
+  if (!MODEL_DATA || !floatDefs.length) return null;
+  let sumSq = 0, n = 0;
+  floatDefs.filter(f=>f.isReal).forEach(def=>{
+    const profile = floatProfileAt(def);
+    if (!profile.modelReal) return;
+    profile.temps.forEach((v,i)=>{
+      const o = profile.obsTemps[i];
+      if (v!=null && o!=null){ sumSq += (v-o)*(v-o); n++; }
+    });
+  });
+  return n ? Math.sqrt(sumSq/n) : null;
+}
+
+function updateRmseCard(){
+  const beforeEl = document.getElementById('rmse-before-val');
+  const dropEl = document.getElementById('rmse-drop-val');
+  const rmse = computeRealRmse();
+  if (rmse != null){
+    beforeEl.textContent = rmse.toFixed(2) + '\u00b0C';
+    dropEl.textContent = 'Live Copernicus vs Argo \u00b7 ' + currentDateLabel();
+  } else {
+    beforeEl.textContent = '1.42\u00b0C';
+    dropEl.textContent = '\u221273% after EnOI';
+  }
+  updateRmseNarrative();
+}
+
+/* Education mode shows a plain-language sentence instead of the raw RMSE
+   figures (which stay in researcher mode). Reads the "after" badge value
+   so it stays correct if that ever gets wired to a live-computed number
+   instead of the current illustrative constant. */
+function updateRmseNarrative(){
+  const narrEl = document.getElementById('rmse-narrative-val');
+  if (!narrEl) return;
+  const afterText = document.getElementById('rmse-after-val').textContent;
+  const afterNum = parseFloat(afterText);
+  let phrase = 'a good match';
+  if (!isNaN(afterNum)){
+    phrase = afterNum < 0.5 ? 'a strong match' : (afterNum < 1.0 ? 'a good match' : 'a rough match');
+  }
+  narrEl.innerHTML = `The corrected model is now within <b>${afterText}</b> of the real buoy reading &mdash; ${phrase}.`;
+}
+
+/* Single entry point for every control that changes "which day are we
+   looking at" (slider drag, play/pause tick, step back, reset). Keeps the
+   side panel, Compare tab, Analysis charts and the RMSE badge all in sync
+   with the same state.timeIdx instead of drifting out of step. */
+function refreshForTimeChange(){
+  refreshTimeReadout();
+  if (state.selectedFloatIdx !== null && floats[state.selectedFloatIdx]) selectFloat(state.selectedFloatIdx, true);
+  renderCompare();
+  renderAnalysisCharts();
+  updateRmseCard();
+}
+document.getElementById('time-slider').addEventListener('input', (e)=>{
+  state.timeIdx = parseInt(e.target.value, 10);
+  refreshForTimeChange();
+});
+document.getElementById('btn-time-play').addEventListener('click', function(){
+  state.playingTime = !state.playingTime;
+  this.innerHTML = state.playingTime ? '&#9208; Pause' : '&#9654; Play';
+  if (state.playingTime){
+    state.timeTimer = setInterval(()=>{
+      const n = state.timeline.labels.length || 7;
+      state.timeIdx = (state.timeIdx + 1) % n;
+      document.getElementById('time-slider').value = state.timeIdx;
+      refreshForTimeChange();
+    }, 1100);
+  } else {
+    clearInterval(state.timeTimer);
+  }
+});
+document.getElementById('btn-time-back').addEventListener('click', ()=>{
+  const n = state.timeline.labels.length || 7;
+  state.timeIdx = (state.timeIdx - 1 + n) % n;
+  document.getElementById('time-slider').value = state.timeIdx;
+  refreshForTimeChange();
+});
+document.getElementById('btn-time-reset').addEventListener('click', ()=>{
+  state.timeIdx = 0;
+  document.getElementById('time-slider').value = 0;
+  refreshForTimeChange();
+});
+
+/* ===================================================================
+   CONTROL PANEL WIRING — depth
+   =================================================================== */
+const depthSlider = document.getElementById('depth-slider');
+const depthReadout = document.getElementById('depth-readout');
+const depthStatus = document.getElementById('depth-status');
+function refreshDepthReadout(){
+  const d = parseInt(depthSlider.value, 10);
+  depthReadout.textContent = d + ' m';
+  const exact = d % 50 === 0;
+  depthStatus.textContent = exact ? 'Exact' : 'Interpolated';
+  depthStatus.className = 'status-tag ' + (exact ? 'status-exact' : 'status-interp');
+  refDepthPlane.position.y = depthToY(d);
+  refDepthPlane.visible = true;
+}
+depthSlider.addEventListener('input', refreshDepthReadout);
+
+/* ===================================================================
+   CONTROL PANEL WIRING — vertical exaggeration + opacity
+   =================================================================== */
+const VEXAG_STEPS = [1, 1.5, 2, 3];
+document.getElementById('sel-vexag').addEventListener('input', (e)=>{
+  const mult = VEXAG_STEPS[parseInt(e.target.value, 10)];
+  state.vexag = mult;
+  document.getElementById('vexag-val').textContent = mult + '\u00d7';
+  sceneGroup.scale.y = mult;
+});
+document.getElementById('sel-opacity').addEventListener('input', (e)=>{
+  state.opacity = parseInt(e.target.value, 10) / 100;
+  document.getElementById('opacity-val').textContent = e.target.value + '%';
+  oceanUniforms.uOpacity.value = state.opacity;
+});
+
+document.querySelectorAll('[data-toggle]').forEach(sw=>{
+  sw.addEventListener('click', ()=>{
+    sw.classList.toggle('on');
+    const key = sw.dataset.toggle;
+    const on = sw.classList.contains('on');
+    if (key === 'currents'){ state.showCurrents = on; flowArrows.forEach(a=>a.visible = on); }
+    if (key === 'grid'){ state.showGrid = on; gridGroup.visible = on; }
+  });
+});
+
+const btnPlay = document.getElementById('btn-toggle-play');
+btnPlay.addEventListener('click', ()=>{
+  state.playing = !state.playing;
+  btnPlay.innerHTML = state.playing ? '&#9208;' : '&#9654;';
+});
+document.getElementById('btn-step-back').addEventListener('click', ()=>{ state.tNorm = (state.tNorm - 0.04 + 1) % 1; });
+document.getElementById('btn-step-fwd').addEventListener('click', ()=>{ state.tNorm = (state.tNorm + 0.04) % 1; });
+
+document.querySelectorAll('.view-mode-row button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.view-mode-row button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    if (btn.dataset.viewmode === 'top'){ camera.position.set(0.1, 16, 0.1); }
+    else { camera.position.set(9, 6, 12); }
+  });
+});
+document.getElementById('btn-reset-cam').addEventListener('click', ()=>{
+  camera.position.set(9, 6, 12);
+  controls.target.set(0, -4, 0);
+});
+
+/* ---- Orientation compass: ring rotates opposite the camera's azimuth
+   around the scene so "N" always points the way the camera is actually
+   facing; clicking it snaps the camera back to the default orbit. ---- */
+const compassRing = document.getElementById('compass-ring');
+function updateCompass(){
+  if (!compassRing) return;
+  const dx = camera.position.x - controls.target.x;
+  const dz = camera.position.z - controls.target.z;
+  const azimuthDeg = Math.atan2(dx, dz) * 180 / Math.PI;
+  compassRing.style.transform = 'rotate(' + (-azimuthDeg) + 'deg)';
+}
+document.getElementById('compass-widget').addEventListener('click', ()=>{
+  camera.position.set(9, 6, 12);
+  controls.target.set(0, -4, 0);
+  showToast('View reset to default orbit');
+});
+document.getElementById('btn-fullscreen').addEventListener('click', ()=>{
+  const el = document.getElementById('viewer-wrap');
+  if (!document.fullscreenElement) el.requestFullscreen();
+  else document.exitFullscreen();
+});
+document.getElementById('btn-goto-compare').addEventListener('click', ()=>{
+  if (state.selectedFloatIdx !== null){
+    document.getElementById('cmp-float').value = floats[state.selectedFloatIdx].def.id;
+  }
+  showSubview('subview-compare');
+  renderCompare();
+});
+
+/* ===================================================================
+   MoES FEATURE 1 & 2 — Before/After EnOI toggle + RMSE card
+   =================================================================== */
+const abBtnA = document.getElementById('ab-view-a');
+const abBtnB = document.getElementById('ab-view-b');
+const rmseBeforeVal = 1.42, rmseAfterVal = 0.38;
+
+function setAB(which){
+  state.abTarget = which === 'b' ? 1 : 0;
+  abBtnA.classList.toggle('active', which === 'a');
+  abBtnB.classList.toggle('active', which === 'b');
+  document.getElementById('rmse-before-val').style.opacity = which === 'a' ? '1' : '0.4';
+  document.getElementById('rmse-after-val').style.opacity = which === 'b' ? '1' : '0.4';
+}
+abBtnA.addEventListener('click', ()=>setAB('a'));
+abBtnB.addEventListener('click', ()=>setAB('b'));
+setAB('a');
+
+/* ===================================================================
+   ARGO TABS
+   =================================================================== */
+document.querySelectorAll('[data-argotab]').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('[data-argotab]').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    ['profile','trajectory','metadata'].forEach(name=>{
+      document.getElementById('argotab-'+name).style.display = (name === tab.dataset.argotab) ? 'block' : 'none';
+    });
+    /* charts drawn while their tab was hidden report 0 width/height,
+       so redraw now that the canvas is actually visible */
+    if (tab.dataset.argotab === 'trajectory') renderTrajectoryChart();
+    if (tab.dataset.argotab === 'profile') renderProfileChart();
+  });
+});
+
+/* ===================================================================
+   MINI CANVAS CHART HELPER (used only in the Argo side panel)
+   =================================================================== */
+/* Cache of the last selected float's chart data. Canvases inside a
+   display:none tab report clientWidth/Height = 0, so drawing straight
+   into a hidden tab produces a blank/zero-size canvas — this cache lets
+   us redraw with real dimensions the moment a tab becomes visible,
+   which is what actually fixes the Trajectory tab. */
+let lastChartData = { profile:null, trajectory:null };
+function renderProfileChart(){
+  if (!lastChartData.profile) return;
+  drawLineChart(document.getElementById('profile-chart'), lastChartData.profile.series, lastChartData.profile.color);
+}
+function renderTrajectoryChart(){
+  if (!lastChartData.trajectory) return;
+  drawTrajectoryChart(document.getElementById('trajectory-chart'), lastChartData.trajectory.points, lastChartData.trajectory.color);
+}
+
+/* 2D lat/lon drift path (longitude on x, latitude on y) — replaces the
+   old single-axis latitude line so "Trajectory" actually shows a path. */
+function drawTrajectoryChart(canvas, points, color){
+  if (!canvas || !points || !points.length) return;
+  const dpr = Math.min(devicePixelRatio,2);
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (!w || !h) return;
+  canvas.width = w*dpr; canvas.height = h*dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,w,h);
+  const pad = 16;
+  const lats = points.map(p=>p.lat), lons = points.map(p=>p.lon);
+  const latMin = Math.min(...lats), latMax = Math.max(...lats);
+  const lonMin = Math.min(...lons), lonMax = Math.max(...lons);
+  const latRange = (latMax-latMin) || 0.5, lonRange = (lonMax-lonMin) || 0.5;
+  ctx.strokeStyle = 'rgba(160,210,225,0.1)';
+  for(let i=0;i<=3;i++){
+    const y = pad + (h-pad*2)*i/3;
+    ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(w-pad,y); ctx.stroke();
+    const x = pad + (w-pad*2)*i/3;
+    ctx.beginPath(); ctx.moveTo(x,pad); ctx.lineTo(x,h-pad); ctx.stroke();
+  }
+  const toXY = (p)=>({
+    x: pad + (w-pad*2) * ((p.lon-lonMin)/lonRange),
+    y: pad + (h-pad*2) * (1 - (p.lat-latMin)/latRange),
+  });
+  ctx.beginPath();
+  points.forEach((p,i)=>{ const {x,y}=toXY(p); if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
+  ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
+  points.forEach((p,i)=>{
+    const {x,y} = toXY(p);
+    ctx.beginPath(); ctx.arc(x,y, i===points.length-1 ? 4 : 2, 0, Math.PI*2);
+    ctx.fillStyle = i===points.length-1 ? '#ffffff' : color;
+    ctx.fill();
+  });
+}
+
+/* Keep the 3D view, Compare and Analysis all pointed at the same float.
+   source tells us who triggered the change, so we don't re-trigger it
+   and loop (e.g. a 3D click shouldn't re-run selectFloat via itself). */
+let syncingFloat = false;
+function syncSelectedFloatAcrossViews(id, source){
+  if (syncingFloat || !id) return;
+  syncingFloat = true;
+  const cmpSel = document.getElementById('cmp-float');
+  const anSel = document.getElementById('an-float');
+  if (cmpSel && cmpSel.value !== id) cmpSel.value = id;
+  if (anSel && anSel.value !== id) anSel.value = id;
+  if (source !== 'compare' && cmpSel) renderCompare();
+  if (source !== 'analysis' && anSel) renderAnalysisCharts();
+  if (source !== '3d'){
+    const idx = floatDefs.findIndex(f=>f.id === id);
+    if (idx !== -1 && idx !== state.selectedFloatIdx) selectFloat(idx, true);
+  }
+  syncingFloat = false;
+}
+
+function drawLineChart(canvas, series, color){
+  if (!canvas) return;
+  const dpr = Math.min(devicePixelRatio,2);
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  canvas.width = w*dpr; canvas.height = h*dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,w,h);
+  const pad = 10;
+  const min = Math.min(...series), max = Math.max(...series);
+  const range = (max-min) || 1;
+  ctx.strokeStyle = 'rgba(160,210,225,0.12)';
+  for(let i=0;i<4;i++){
+    const y = pad + (h-pad*2)*i/3;
+    ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(w-pad,y); ctx.stroke();
+  }
+  ctx.beginPath();
+  series.forEach((v,i)=>{
+    const x = pad + (w-pad*2) * (i/(series.length-1));
+    const y = pad + (h-pad*2) * (1 - (v-min)/range);
+    if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  });
+  ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
+  const grad = ctx.createLinearGradient(0,0,0,h);
+  grad.addColorStop(0, color+'55'); grad.addColorStop(1, color+'00');
+  ctx.lineTo(w-pad, h-pad); ctx.lineTo(pad, h-pad); ctx.closePath();
+  ctx.fillStyle = grad; ctx.fill();
+}
+
+/* ===================================================================
+   THREE.JS SCENE
+   =================================================================== */
+const viewerWrap = document.getElementById('viewer-wrap');
+const canvasEl = document.getElementById('viewer-canvas');
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x040d13, 0.02);
+
+const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 200);
+camera.position.set(9, 6, 12);
+
+const renderer = new THREE.WebGLRenderer({ canvas: canvasEl, antialias:true, alpha:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, -4, 0);
+controls.minDistance = 8;
+controls.maxDistance = 34;
+controls.maxPolarAngle = Math.PI * 0.49;
+controls.enableDamping = true;
+
+scene.add(new THREE.AmbientLight(0x88aacc, 0.9));
+const sun = new THREE.DirectionalLight(0xffffff, 0.6);
+sun.position.set(10, 20, 8);
+scene.add(sun);
+
+// Everything that represents the water column lives in sceneGroup, so
+// vertical exaggeration is just sceneGroup.scale.y — the top (y=0) stays
+// anchored and depth is stretched below it.
+const sceneGroup = new THREE.Group();
+scene.add(sceneGroup);
+
+function onViewerResize(){
+  const w = viewerWrap.clientWidth || 800;
+  const h = viewerWrap.clientHeight || 600;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h, false);
+}
+new ResizeObserver(onViewerResize).observe(viewerWrap);
+
+const BOX_W = 11, BOX_D = 8, BOX_H = 8;
+const MAX_DEPTH_M = 1000;
+const yTop = 0, yBottom = -BOX_H;
+const depthToY = (m) => yTop - (m / MAX_DEPTH_M) * BOX_H;
+
+const oceanUniforms = { uTop:{value:yTop}, uBottom:{value:yBottom}, uTime:{value:0}, uVar:{value:0}, uOpacity:{value:1} };
+
+const oceanMaterial = new THREE.ShaderMaterial({
+  uniforms: oceanUniforms,
+  transparent: true,
+  side: THREE.DoubleSide,
+  depthWrite: false,
+  vertexShader: `
+    varying vec3 vPos;
+    void main(){ vPos = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }
+  `,
+  fragmentShader: `
+    varying vec3 vPos;
+    uniform float uTop, uBottom, uTime, uOpacity;
+    uniform int uVar;
+    vec3 rampTemp(float t){
+      vec3 c0=vec3(0.91,0.54,0.36), c1=vec3(0.90,0.73,0.36), c2=vec3(0.30,0.55,0.49), c3=vec3(0.13,0.76,0.79), c4=vec3(0.04,0.10,0.15);
+      if (t<0.12) return mix(c0,c1,t/0.12);
+      if (t<0.30) return mix(c1,c2,(t-0.12)/0.18);
+      if (t<0.60) return mix(c2,c3,(t-0.30)/0.30);
+      return mix(c3,c4,(t-0.60)/0.40);
+    }
+    vec3 rampSalinity(float t){
+      vec3 c0=vec3(0.36,0.91,0.88), c1=vec3(0.13,0.76,0.79), c2=vec3(0.30,0.55,0.49), c3=vec3(0.04,0.10,0.15), c4=vec3(0.02,0.05,0.08);
+      if (t<0.25) return mix(c0,c1,t/0.25);
+      if (t<0.55) return mix(c1,c2,(t-0.25)/0.30);
+      if (t<0.80) return mix(c2,c3,(t-0.55)/0.25);
+      return mix(c3,c4,(t-0.80)/0.20);
+    }
+    vec3 rampChlorophyll(float t){
+      // chlorophyll concentrates near the sunlit surface and fades with depth
+      vec3 c0=vec3(0.78,0.90,0.13), c1=vec3(0.36,0.83,0.54), c2=vec3(0.13,0.76,0.79), c3=vec3(0.06,0.14,0.20), c4=vec3(0.02,0.05,0.08);
+      if (t<0.08) return mix(c0,c1,t/0.08);
+      if (t<0.22) return mix(c1,c2,(t-0.08)/0.14);
+      if (t<0.55) return mix(c2,c3,(t-0.22)/0.33);
+      return mix(c3,c4,(t-0.55)/0.45);
+    }
+    void main(){
+      float t = clamp((uTop - vPos.y) / (uTop - uBottom), 0.0, 1.0);
+      vec3 col = uVar==0 ? rampTemp(t) : (uVar==1 ? rampSalinity(t) : rampChlorophyll(t));
+      float alpha = mix(0.55, 0.22, t) * uOpacity;
+      float band = 0.5 + 0.5*sin(vPos.y*10.0 + uTime*0.3);
+      col += band*0.015;
+      /* faint flowing current streaks across the block faces, like the
+         reference viewer's water-motion lines */
+      float streak1 = sin((vPos.x*1.3 + vPos.y*2.4) * 3.1 + uTime*0.35);
+      float streak2 = sin((vPos.z*1.1 - vPos.y*1.8) * 3.6 - uTime*0.22);
+      float streaks = smoothstep(0.9, 1.0, max(streak1, streak2)) * 0.10;
+      col += vec3(streaks);
+      gl_FragColor = vec4(col, alpha);
+    }
+  `
+});
+
+const oceanBox = new THREE.Mesh(new THREE.BoxGeometry(BOX_W, BOX_H, BOX_D), oceanMaterial);
+oceanBox.position.y = yTop - BOX_H/2;
+sceneGroup.add(oceanBox);
+
+const edges = new THREE.LineSegments(
+  new THREE.EdgesGeometry(new THREE.BoxGeometry(BOX_W, BOX_H, BOX_D)),
+  new THREE.LineBasicMaterial({ color:0x9fd3e8, transparent:true, opacity:0.35 })
+);
+edges.position.copy(oceanBox.position);
+sceneGroup.add(edges);
+
+const gridGroup = new THREE.Group();
+for (let d = 0; d <= MAX_DEPTH_M; d += 200){
+  const y = depthToY(d);
+  const g = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(-BOX_W/2, y,  BOX_D/2), new THREE.Vector3( BOX_W/2, y,  BOX_D/2),
+    new THREE.Vector3( BOX_W/2, y, -BOX_D/2), new THREE.Vector3(-BOX_W/2, y, -BOX_D/2),
+    new THREE.Vector3(-BOX_W/2, y,  BOX_D/2),
+  ]);
+  gridGroup.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color:0x9fd3e8, transparent:true, opacity:0.14 })));
+}
+sceneGroup.add(gridGroup);
+
+const colorAmber = new THREE.Color(0xe6b95c);
+const colorGood = new THREE.Color(0x5bd48a);
+const refDepthPlane = new THREE.Mesh(
+  new THREE.PlaneGeometry(BOX_W, BOX_D),
+  new THREE.MeshBasicMaterial({ color:colorAmber, transparent:true, opacity:0.12, side:THREE.DoubleSide })
+);
+refDepthPlane.rotation.x = Math.PI/2;
+refDepthPlane.visible = false;
+sceneGroup.add(refDepthPlane);
+
+function makeLandTexture(){
+  const c = document.createElement('canvas'); c.width = c.height = 512;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#0e2433'; ctx.fillRect(0,0,512,512);
+  ctx.fillStyle = 'rgba(77,139,124,0.85)';
+  for(let i=0;i<60;i++){
+    const x = Math.random()*512, y = Math.random()*260, r = 20+Math.random()*60;
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+  }
+  ctx.fillStyle = 'rgba(200,190,150,0.5)';
+  ctx.fillRect(0, 250, 512, 20);
+  return new THREE.CanvasTexture(c);
+}
+const land = new THREE.Mesh(
+  new THREE.PlaneGeometry(BOX_W, BOX_D*0.5),
+  new THREE.MeshBasicMaterial({ map: makeLandTexture(), transparent:true, opacity:0.9 })
+);
+land.rotation.x = -Math.PI/2;
+land.position.set(0, 0.02, -BOX_D/2 - BOX_D*0.5/2 + 0.5);
+sceneGroup.add(land);
+
+function makeArrow(color){
+  const group = new THREE.Group();
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.018,0.018,0.42,6), new THREE.MeshBasicMaterial({color}));
+  shaft.rotation.z = Math.PI/2; shaft.position.x = 0.2;
+  const head = new THREE.Mesh(new THREE.ConeGeometry(0.05,0.13,6), new THREE.MeshBasicMaterial({color}));
+  head.rotation.z = -Math.PI/2; head.position.x = 0.45;
+  group.add(shaft, head);
+  return group;
+}
+const flowArrows = [];
+[80,300,550,800].forEach(d=>{
+  const y = depthToY(d);
+  for(let i=0;i<6;i++){
+    const arrow = makeArrow(0xbfe9f5);
+    arrow.traverse(o=>{ if(o.material){ o.material.transparent = true; o.material.opacity = 0.5; }});
+    arrow.position.set(THREE.MathUtils.randFloatSpread(BOX_W*0.8), y, THREE.MathUtils.randFloatSpread(BOX_D*0.8));
+    arrow.rotation.y = Math.random()*Math.PI*2;
+    arrow.userData.speed = 0.12 + Math.random()*0.18;
+    sceneGroup.add(arrow);
+    flowArrows.push(arrow);
+  }
+});
+
+/* ---------- Argo floats ---------- */
+let floatDefs = [
+  { id:'6903798', wmo:'6903798', color:0xe8895b, x:2.2, z:1.2, lat:0, lon:0, surfaceDepth:5, parkDepth:900, phase:0.0, status:'Active', isReal:false, cycles:null },
+  { id:'5906234', wmo:'5906234', color:0x5bd48a, x:-2.6, z:-0.8, lat:0, lon:0, surfaceDepth:5, parkDepth:500, phase:0.4, status:'Active', isReal:false, cycles:null },
+  { id:'5906512', wmo:'5906512', color:0x5bd48a, x:0.4, z:2.4, lat:0, lon:0, surfaceDepth:5, parkDepth:350, phase:0.7, status:'Active', isReal:false, cycles:null },
+];
+const REFERENCE_FLOAT_IDX = 0;
+
+function clamp01(v){ return Math.max(0, Math.min(1, v)); }
+
+/* Mock floats reposition with the region box (via their fixed fractional
+   offset); real floats (isReal:true) keep their true lat/lon and are just
+   re-projected into the box, so moving the LOCATION inputs slides them
+   correctly (or clamps them to the edge if they fall outside the box). */
+function repositionFloats(){
+  const r = state.region;
+  floatDefs.forEach((def, i)=>{
+    if (!def.isReal){
+      const frac = FLOAT_FRACS[i % FLOAT_FRACS.length];
+      def.lat = r.minLat + frac.fLat * (r.maxLat - r.minLat);
+      def.lon = r.minLon + frac.fLon * (r.maxLon - r.minLon);
+    }
+    const fLon = clamp01((def.lon - r.minLon) / ((r.maxLon - r.minLon) || 1));
+    const fLat = clamp01((def.lat - r.minLat) / ((r.maxLat - r.minLat) || 1));
+    def.x = (fLon - 0.5) * BOX_W * 0.82;
+    def.z = (0.5 - fLat) * BOX_D * 0.82;
+  });
+  if (state.selectedFloatIdx !== null && floats[state.selectedFloatIdx]) selectFloat(state.selectedFloatIdx);
+}
+
+/* Float meshes are rebuilt (not just re-created once) because real Argo
+   data can bring a different number of floats than the 3 mock ones. */
+let floats = [];
+function rebuildFloatMeshes(){
+  floats.forEach(f=>{ sceneGroup.remove(f.sphere); sceneGroup.remove(f.line); });
+  floats = floatDefs.map(def=>{
+    const sphere = new THREE.Mesh(
+      new THREE.SphereGeometry(0.13, 16, 16),
+      new THREE.MeshStandardMaterial({ color:def.color, emissive:def.color, emissiveIntensity:0.6 })
+    );
+    sceneGroup.add(sphere);
+    const line = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
+      new THREE.LineDashedMaterial({ color:def.color, dashSize:0.1, gapSize:0.08, transparent:true, opacity:0.7 })
+    );
+    sceneGroup.add(line);
+    return { def, sphere, line };
+  });
+}
+rebuildFloatMeshes();
+function floatDepthAt(def, tNorm){
+  const cycle = (tNorm + def.phase) % 1;
+  const goingDown = cycle < 0.5;
+  const local = goingDown ? cycle/0.5 : 1 - (cycle-0.5)/0.5;
+  return def.surfaceDepth + local * (def.parkDepth - def.surfaceDepth);
+}
+
+const highlightRing = new THREE.Mesh(
+  new THREE.TorusGeometry(0.26, 0.02, 8, 32),
+  new THREE.MeshBasicMaterial({ color:0x5be8e0, transparent:true, opacity:0.85 })
+);
+sceneGroup.add(highlightRing);
+
+const colorMismatch = new THREE.Color(0xe8895b);
+const colorAligned = new THREE.Color(0x5be8e0);
+const plume = new THREE.Mesh(
+  new THREE.IcosahedronGeometry(0.42, 1),
+  new THREE.MeshBasicMaterial({ color:colorMismatch, transparent:true, opacity:0.4, wireframe:false })
+);
+sceneGroup.add(plume);
+
+const artifactRing = new THREE.Mesh(
+  new THREE.TorusKnotGeometry(0.32, 0.03, 60, 6, 2, 3),
+  new THREE.MeshBasicMaterial({ color:colorMismatch, transparent:true, opacity:0.5, wireframe:true })
+);
+sceneGroup.add(artifactRing);
+
+const errorLine = new THREE.Line(
+  new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
+  new THREE.LineDashedMaterial({ color:0xe8895b, dashSize:0.08, gapSize:0.06, transparent:true, opacity:0.7 })
+);
+sceneGroup.add(errorLine);
+
+const PLUME_OFFSET = new THREE.Vector3(1.1, 0.15, -0.8);
+
+const depthAxisLayer = document.getElementById('depth-axis-layer');
+const axisEls = [0,200,500,1000].map(d=>{
+  const el = document.createElement('div');
+  el.className = 'tick';
+  el.innerHTML = `<span class="bar"></span>${d} m`;
+  depthAxisLayer.appendChild(el);
+  return { d, el };
+});
+
+const buoyTag = document.getElementById('buoy-ref-tag');
+
+const tooltip = document.getElementById('float-tooltip');
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+function fmtLatLon(lat, lon){
+  return Math.abs(lat).toFixed(2) + '\u00b0' + (lat>=0?'N':'S') + ', ' + Math.abs(lon).toFixed(2) + '\u00b0' + (lon>=0?'E':'W');
+}
+
+/* Real-data cycle nearest to the currently selected date; null for mock floats. */
+function pickCycleForFloat(def, dayIdx){
+  if (!def.cycles || !def.cycles.length) return null;
+  const idx = (dayIdx===undefined) ? state.timeIdx : dayIdx;
+  const dates = state.timeline.dates;
+  const target = (dates && dates[idx]) ? dates[idx].getTime() : Date.now();
+  let best = def.cycles[0], bestDiff = Infinity;
+  def.cycles.forEach(c=>{
+    const t = c.time ? new Date(c.time).getTime() : NaN;
+    const diff = isNaN(t) ? Infinity : Math.abs(t - target);
+    if (diff < bestDiff){ bestDiff = diff; best = c; }
+  });
+  return best;
+}
+function qcBadgeFor(qcValues){
+  const vals = qcValues.filter(v=>v!==null && v!==undefined);
+  if (!vals.length) return { label:'Unknown', cls:'' };
+  if (vals.every(v=>v===1)) return { label:'Good', cls:'qgood' };
+  if (vals.some(v=>v===4)) return { label:'Bad', cls:'qbad' };
+  return { label:'Probable', cls:'qwarn' };
+}
+
+function selectFloat(idx, silent){
+  state.selectedFloatIdx = idx;
+  const f = floats[idx];
+  document.getElementById('argo-empty-state').style.display = 'none';
+  document.getElementById('argo-detail').style.display = 'block';
+  document.getElementById('d-id').textContent = f.def.id;
+  document.getElementById('d-status').textContent = f.def.status;
+  document.getElementById('d-park').textContent = f.def.parkDepth + ' m';
+  document.getElementById('d-position').textContent = fmtLatLon(f.def.lat, f.def.lon);
+  document.getElementById('m-wmo').textContent = f.def.wmo;
+  const tl = state.timeline;
+  const cyc = pickCycleForFloat(f.def, state.timeIdx);
+
+  document.getElementById('d-cycle').textContent = cyc && cyc.cycle != null ? ('#' + cyc.cycle) : ('#' + (12 + idx*3));
+  document.getElementById('m-deployed').textContent = f.def.isReal && f.def.firstTime ? fmtLongDate(new Date(f.def.firstTime)) : (tl.start ? fmtLongDate(tl.start) : '\u2014');
+  document.getElementById('m-lasttx').textContent = f.def.isReal && f.def.lastTime ? fmtLongDate(new Date(f.def.lastTime)) : (tl.end ? fmtLongDate(tl.end) : '\u2014');
+  document.getElementById('prov-wmo').textContent = f.def.wmo;
+  document.getElementById('prov-updated').textContent = (f.def.isReal && f.def.lastTime ? fmtLongDate(new Date(f.def.lastTime)) : (tl.end ? fmtLongDate(tl.end) : '\u2014'));
+  const provSource = document.getElementById('prov-source');
+  if (provSource) provSource.textContent = f.def.isReal ? 'INCOIS ERDDAP \u00b7 Indian_ARGO_Floats' : 'Argo GDAC (ifremer mirror) \u00b7 demo data';
+
+  let profileSeries, trajPoints;
+  if (cyc && cyc.levels && cyc.levels.length){
+    const temps = cyc.levels.map(l=>l.temp).filter(v=>v!=null);
+    profileSeries = temps.length>1 ? temps : [27,26];
+    trajPoints = f.def.cycles.filter(c=>c.lat!=null && c.lon!=null).map(c=>({lat:c.lat, lon:c.lon}));
+    if (trajPoints.length < 2) trajPoints = [{lat:f.def.lat,lon:f.def.lon},{lat:f.def.lat,lon:f.def.lon}];
+    const tQc = qcBadgeFor(cyc.levels.map(l=>l.temp_qc));
+    const sQc = qcBadgeFor(cyc.levels.map(l=>l.psal_qc));
+    const tEl = document.getElementById('qc-salinity');
+    if (tEl){ tEl.textContent = sQc.label; tEl.className = 'qbadge ' + (sQc.cls || 'qgood'); }
+  } else {
+    const seed = parseInt(f.def.id.slice(-3),10);
+    profileSeries = seededSeries(seed, 20, 27, 1.2).map((v,i)=>27-i*(20/f.def.parkDepth)*3+ (v-27)*0.3);
+    const latSeries = seededSeries(seed+7, 16, f.def.lat, 0.35);
+    const lonSeries = seededSeries(seed+13, 16, f.def.lon, 0.35);
+    trajPoints = latSeries.map((lat,i)=>({lat, lon: lonSeries[i]}));
+    const qcEl = document.getElementById('qc-salinity');
+    if (qcEl){ qcEl.textContent = 'Probable'; qcEl.className = 'qbadge qwarn'; }
+  }
+  lastChartData.profile = { series: profileSeries, color:'#e8895b' };
+  lastChartData.trajectory = { points: trajPoints, color:'#5be8e0' };
+  renderProfileChart();
+  renderTrajectoryChart();
+  const tm = document.getElementById('trajectory-meta');
+  if (tm){
+    const first = trajPoints[0], last = trajPoints[trajPoints.length-1];
+    tm.textContent = trajPoints.length + ' fixes \u00b7 ' + fmtLatLon(first.lat, first.lon) + ' \u2192 ' + fmtLatLon(last.lat, last.lon);
+  }
+  showToast('Float ' + f.def.id + ' selected' + (f.def.isReal ? ' (real Argo data)' : ''), silent);
+  syncSelectedFloatAcrossViews(f.def.id, '3d');
+}
+
+renderer.domElement.addEventListener('click', (e)=>{
+  const rect = renderer.domElement.getBoundingClientRect();
+  mouse.x = ((e.clientX-rect.left)/rect.width)*2-1;
+  mouse.y = -((e.clientY-rect.top)/rect.height)*2+1;
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(floats.map(f=>f.sphere));
+  if (hits.length){
+    const idx = floats.findIndex(f=>f.sphere === hits[0].object);
+    selectFloat(idx);
+  }
+});
+renderer.domElement.addEventListener('mousemove', (e)=>{
+  const rect = renderer.domElement.getBoundingClientRect();
+  mouse.x = ((e.clientX-rect.left)/rect.width)*2-1;
+  mouse.y = -((e.clientY-rect.top)/rect.height)*2+1;
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(floats.map(f=>f.sphere));
+  if (hits.length){
+    const idx = floats.findIndex(f=>f.sphere === hits[0].object);
+    const f = floats[idx].def;
+    tooltip.style.display = 'block';
+    tooltip.style.left = (e.clientX - rect.left + 14) + 'px';
+    tooltip.style.top = (e.clientY - rect.top - 10) + 'px';
+    tooltip.innerHTML = `<div class="t-title">Argo Float ${f.id}</div>
+      <div class="t-row"><span>Status</span><b>${f.status}</b></div>
+      <div class="t-row"><span>Position</span><b>${fmtLatLon(f.lat, f.lon)}</b></div>
+      <div class="t-row"><span>Park depth</span><b>${f.parkDepth} m</b></div>`;
+  } else {
+    tooltip.style.display = 'none';
+  }
+});
+
+/* ===================================================================
+   RENDER LOOP
+   =================================================================== */
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = clock.getDelta();
+  oceanUniforms.uTime.value += dt;
+
+  if (state.playing){ state.tNorm = (state.tNorm + dt*0.02) % 1; }
+  state.abProgress += (state.abTarget - state.abProgress) * Math.min(dt*4, 1);
+  const p = state.abProgress;
+
+  floats.forEach(f=>{
+    const depth = floatDepthAt(f.def, state.tNorm);
+    const y = depthToY(depth);
+    f.sphere.position.set(f.def.x, y, f.def.z);
+    f.line.geometry.setFromPoints([new THREE.Vector3(f.def.x, yTop, f.def.z), new THREE.Vector3(f.def.x, y, f.def.z)]);
+    f.line.geometry.computeBoundingSphere();
+    f.line.computeLineDistances();
+  });
+
+  const activeFloatIdx = state.selectedFloatIdx !== null ? state.selectedFloatIdx : REFERENCE_FLOAT_IDX;
+  const buoy = floats[activeFloatIdx].sphere.position;
+  const ox = THREE.MathUtils.lerp(PLUME_OFFSET.x, 0, p);
+  const oz = THREE.MathUtils.lerp(PLUME_OFFSET.z, 0, p);
+  plume.position.set(buoy.x + ox, buoy.y + PLUME_OFFSET.y, buoy.z + oz);
+  plume.material.color.lerpColors(colorMismatch, colorAligned, p);
+  plume.material.opacity = 0.42;
+
+  artifactRing.position.copy(plume.position);
+  artifactRing.rotation.z += dt * 0.6;
+  artifactRing.rotation.x += dt * 0.3;
+  artifactRing.material.opacity = 0.5 * (1 - p);
+
+  errorLine.geometry.setFromPoints([plume.position.clone(), buoy.clone()]);
+  errorLine.geometry.computeBoundingSphere();
+  errorLine.computeLineDistances();
+  errorLine.material.opacity = 0.7 * (1 - p);
+
+  highlightRing.position.set(buoy.x, buoy.y, buoy.z);
+  highlightRing.scale.setScalar(1 + 0.15 * Math.sin(clock.elapsedTime * 2));
+
+  const buoyScreen = buoy.clone().applyMatrix4(sceneGroup.matrixWorld).project(camera);
+  const vw = viewerWrap.clientWidth, vh = viewerWrap.clientHeight;
+  buoyTag.style.display = 'block';
+  buoyTag.style.left = ((buoyScreen.x*0.5+0.5)*vw) + 'px';
+  buoyTag.style.top = ((1-(buoyScreen.y*0.5+0.5))*vh) + 'px';
+  buoyTag.textContent = 'Reference Argo Buoy \u00b7 ' + floats[activeFloatIdx].def.id;
+
+  const sliceDepth = parseInt(depthSlider.value, 10);
+  const baseCorrection = rmseBeforeVal - rmseAfterVal;
+  const correction = baseCorrection * Math.exp(-sliceDepth/600) * p;
+  const corrEl = document.getElementById('depth-correction-val');
+  const corrTag = document.getElementById('depth-correction-tag');
+  corrEl.textContent = (correction>=0?'+':'') + correction.toFixed(2) + '\u00b0C';
+  if (p < 0.05){ corrTag.textContent = 'No correction (raw)'; corrTag.className = 'status-tag status-interp'; }
+  else if (correction > 0.15){ corrTag.textContent = 'Strong correction'; corrTag.className = 'status-tag status-exact'; }
+  else { corrTag.textContent = 'Weak correction'; corrTag.className = 'status-tag status-interp'; }
+  refDepthPlane.material.color.lerpColors(colorAmber, colorGood, p);
+
+  flowArrows.forEach(a=>{
+    a.position.x += Math.cos(a.rotation.y) * a.userData.speed * dt;
+    a.position.z += Math.sin(a.rotation.y) * a.userData.speed * dt;
+    if (a.position.x > BOX_W/2) a.position.x = -BOX_W/2;
+    if (a.position.x < -BOX_W/2) a.position.x = BOX_W/2;
+    if (a.position.z > BOX_D/2) a.position.z = -BOX_D/2;
+    if (a.position.z < -BOX_D/2) a.position.z = BOX_D/2;
+  });
+
+  axisEls.forEach(({d, el})=>{
+    const y = depthToY(d);
+    const pr = new THREE.Vector3(-BOX_W/2, y, BOX_D/2).applyMatrix4(sceneGroup.matrixWorld).project(camera);
+    el.style.left = ((pr.x*0.5+0.5)*vw - 44) + 'px';
+    el.style.top = ((1-(pr.y*0.5+0.5))*vh) + 'px';
+  });
+
+  updateCompass();
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+/* ===================================================================
+   COMPARE — model vs observation (mirrors the OceanScope reference)
+   =================================================================== */
+function depthEligibility(depth){
+  return DEPTH_LEVELS.includes(depth)
+    ? { status:'EXACT', note:`Depth ${depth} m matches a native model level.` }
+    : { status:'INTERPOLATED', note:`Depth ${depth} m is interpolated between native levels.` };
+}
+
+/* Linear-interpolate a real cycle's levels onto the app's standard
+   DEPTH_LEVELS, so real Argo data can be plotted alongside the mock
+   "model" grid without changing any chart/compare code downstream. */
+function interpProfile(levels, key){
+  const pts = levels.filter(l=>l[key]!=null).map(l=>({depth:l.depth, v:l[key]}));
+  if (!pts.length) return DEPTH_LEVELS.map(()=>null);
+  return DEPTH_LEVELS.map(target=>{
+    if (target <= pts[0].depth) return pts[0].v;
+    if (target >= pts[pts.length-1].depth) return pts[pts.length-1].v;
+    for (let i=0;i<pts.length-1;i++){
+      const a=pts[i], b=pts[i+1];
+      if (target>=a.depth && target<=b.depth){
+        const t = (b.depth-a.depth)===0 ? 0 : (target-a.depth)/(b.depth-a.depth);
+        return +(a.v + t*(b.v-a.v)).toFixed(2);
+      }
+    }
+    return null;
+  });
+}
+
+// Real floats (isReal:true, loaded from argo_data.json): "observation" is the
+// actual Argo reading for the cycle nearest the selected date, interpolated
+// onto DEPTH_LEVELS. "Model" is a small deterministic offset from it — a
+// stand-in until a real HYCOM/ROMS grid is wired in (Compare/Analysis code
+// doesn't need to change either way).
+// Mock floats: both series are seeded from the float id + current region,
+// so a moved region box gives a (slightly) different reading — same spirit
+// as the real pipeline pulling a different lat/lon/time box from ERDDAP.
+function floatProfileAt(def, dayIdx){
+  const cyc = pickCycleForFloat(def, dayIdx);
+  if (cyc && cyc.levels && cyc.levels.length){
+    const obsTemps = interpProfile(cyc.levels, 'temp');
+    const obsSal   = interpProfile(cyc.levels, 'psal');
+    const modelLevels = modelLevelsFor(def, cyc);
+    if (modelLevels && modelLevels.length){
+      // Real Copernicus Marine profile sampled at this cycle's lat/lon/time.
+      const temps = interpProfile(modelLevels, 'temp');
+      const sal   = interpProfile(modelLevels, 'psal');
+      return { temps, sal, obsTemps, obsSal, real:true, modelReal:true };
+    }
+    // No sampled Copernicus profile for this cycle yet — fall back to a
+    // small deterministic offset from the observation as a stand-in.
+    const rnd = tinyRng(parseInt(def.id.slice(-3),10) + (dayIdx===undefined?state.timeIdx:dayIdx));
+    const temps = obsTemps.map(v=> v==null ? null : +(v + 0.25 + (rnd()-0.5)*0.5).toFixed(2));
+    const sal   = obsSal.map(v=> v==null ? null : +(v - 0.08 + (rnd()-0.5)*0.15).toFixed(2));
+    return { temps, sal, obsTemps, obsSal, real:true, modelReal:false };
+  }
+  const r = state.region;
+  const seed = parseInt(def.id.slice(-3), 10) + Math.round(r.minLat*10) + Math.round(r.minLon*10) + (dayIdx||0)*7;
+  const rnd = tinyRng(seed);
+  const temps = DEPTH_LEVELS.map((d,i)=> +(28 - i*2.1 + (rnd()-0.5)*0.6).toFixed(2));
+  const sal   = DEPTH_LEVELS.map((d,i)=> +(35 + i*0.15 + (rnd()-0.5)*0.2).toFixed(2));
+  const obsTemps = temps.map(v=> +(v - 0.3 + (rnd()-0.5)*0.8).toFixed(2));
+  const obsSal   = sal.map(v=> +(v + (rnd()-0.5)*0.3).toFixed(2));
+  return { temps, sal, obsTemps, obsSal, real:false };
+}
+
+/* ===================================================================
+   NETCDF EXPORT
+   Builds a minimal, valid NetCDF-3 classic (.nc) file entirely client-side
+   (no server, no library) containing the depth profile currently shown for
+   the selected float — model (Copernicus, when loaded) and observed (Argo)
+   temperature + salinity at each DEPTH_LEVELS depth.
+   =================================================================== */
+const NC_DIMENSION = 10, NC_VARIABLE = 11, NC_ATTRIBUTE = 12;
+const NC_CHAR = 2, NC_INT = 4, NC_FLOAT = 5, NC_DOUBLE = 6;
+
+class NetCDFWriter {
+  constructor(){ this.chunks = []; this.len = 0; }
+  _push(bytes){ this.chunks.push(bytes); this.len += bytes.length; }
+  u32(v){ const b = new Uint8Array(4); new DataView(b.buffer).setUint32(0, v>>>0, false); this._push(b); }
+  i32(v){ const b = new Uint8Array(4); new DataView(b.buffer).setInt32(0, v|0, false); this._push(b); }
+  f32(v){ const b = new Uint8Array(4); new DataView(b.buffer).setFloat32(0, v, false); this._push(b); }
+  f64(v){ const b = new Uint8Array(8); new DataView(b.buffer).setFloat64(0, v, false); this._push(b); }
+  pad(n){ const rem = n % 4; if (rem) this._push(new Uint8Array(4 - rem)); }
+  name(str){
+    const bytes = new TextEncoder().encode(str);
+    this.u32(bytes.length);
+    this._push(bytes);
+    this.pad(bytes.length);
+  }
+  concat(){
+    const out = new Uint8Array(this.len);
+    let o = 0;
+    this.chunks.forEach(c=>{ out.set(c, o); o += c.length; });
+    return out;
+  }
+}
+
+function ncAttrBytes(w, nctype, value){
+  if (nctype === NC_CHAR){
+    const bytes = new TextEncoder().encode(value || '');
+    w.u32(bytes.length);
+    w._push(bytes);
+    w.pad(bytes.length);
+  } else {
+    w.u32(value.length);
+    value.forEach(v=>{
+      if (nctype === NC_FLOAT) w.f32(v);
+      else if (nctype === NC_DOUBLE) w.f64(v);
+      else if (nctype === NC_INT) w.i32(v);
+    });
+    w.pad(value.length * (nctype===NC_DOUBLE?8:4));
+  }
+}
+function ncWriteAttList(w, attrs){
+  if (!attrs.length){ w.u32(0); w.u32(0); return; }
+  w.u32(NC_ATTRIBUTE);
+  w.u32(attrs.length);
+  attrs.forEach(a=>{ w.name(a.name); w.u32(a.type); ncAttrBytes(w, a.type, a.value); });
+}
+
+/* dims: [{name,len}], globalAttrs: [{name,type,value}],
+   vars: [{name, dimIdx:[...], type, attrs:[...], data:[...]}] */
+function buildNetCDF(dims, globalAttrs, vars){
+  const header = new NetCDFWriter();
+  header._push(new TextEncoder().encode('CDF'));
+  header._push(new Uint8Array([1])); // classic format
+  header.u32(0); // numrecs
+
+  if (!dims.length){ header.u32(0); header.u32(0); }
+  else {
+    header.u32(NC_DIMENSION);
+    header.u32(dims.length);
+    dims.forEach(d=>{ header.name(d.name); header.u32(d.len); });
+  }
+
+  ncWriteAttList(header, globalAttrs);
+
+  const beginPositions = [];
+  if (!vars.length){ header.u32(0); header.u32(0); }
+  else {
+    header.u32(NC_VARIABLE);
+    header.u32(vars.length);
+    vars.forEach(v=>{
+      header.name(v.name);
+      header.u32(v.dimIdx.length);
+      v.dimIdx.forEach(id=>header.i32(id));
+      ncWriteAttList(header, v.attrs || []);
+      header.u32(v.type);
+      const elemSize = v.type===NC_DOUBLE ? 8 : 4;
+      header.u32(v.data.length * elemSize);
+      beginPositions.push(header.len);
+      header.u32(0); // placeholder begin — patched below once header length is known
+    });
+  }
+
+  const headerBuf = header.concat();
+  const view = new DataView(headerBuf.buffer);
+  let offset = headerBuf.length;
+  const dataBufs = [];
+  vars.forEach((v, i)=>{
+    view.setUint32(beginPositions[i], offset, false);
+    const elemSize = v.type===NC_DOUBLE ? 8 : 4;
+    const buf = new Uint8Array(v.data.length * elemSize);
+    const dv = new DataView(buf.buffer);
+    for (let k=0;k<v.data.length;k++){
+      const raw = v.data[k];
+      const val = (raw==null || Number.isNaN(raw)) ? -999 : raw;
+      if (v.type===NC_FLOAT) dv.setFloat32(k*4, val, false);
+      else if (v.type===NC_DOUBLE) dv.setFloat64(k*8, val, false);
+    }
+    dataBufs.push(buf);
+    offset += buf.length;
+  });
+
+  const total = new Uint8Array(headerBuf.length + dataBufs.reduce((a,b)=>a+b.length, 0));
+  total.set(headerBuf, 0);
+  let o = headerBuf.length;
+  dataBufs.forEach(b=>{ total.set(b, o); o += b.length; });
+  return total;
+}
+
+function downloadNetCDF(){
+  const idx = state.selectedFloatIdx !== null ? state.selectedFloatIdx : 0;
+  const entry = floats[idx];
+  if (!entry){ showToast('No float data to export yet — select a float first'); return; }
+  const def = entry.def;
+  const cyc = pickCycleForFloat(def);
+  const profile = floatProfileAt(def);
+
+  const FILL = { name:'_FillValue', type:NC_FLOAT, value:[-999] };
+  const buf = buildNetCDF(
+    [{ name:'depth', len: DEPTH_LEVELS.length }],
+    [
+      { name:'title', type:NC_CHAR, value:'SagarDrishti Argo/Copernicus profile export' },
+      { name:'float_id', type:NC_CHAR, value: String(def.id) },
+      { name:'wmo', type:NC_CHAR, value: String(def.wmo || def.id) },
+      { name:'latitude', type:NC_DOUBLE, value:[def.lat] },
+      { name:'longitude', type:NC_DOUBLE, value:[def.lon] },
+      { name:'cycle_time', type:NC_CHAR, value: (cyc && cyc.time) ? cyc.time : '' },
+      { name:'model_source', type:NC_CHAR, value: profile.modelReal ? 'Copernicus Marine (live)' : 'Demo / synthetic offset' },
+      { name:'data_source', type:NC_CHAR, value: def.isReal ? 'INCOIS ERDDAP Indian_ARGO_Floats' : 'Demo data' },
+      { name:'generated_at', type:NC_CHAR, value: new Date().toISOString() },
+    ],
+    [
+      { name:'depth', dimIdx:[0], type:NC_FLOAT, data: DEPTH_LEVELS, attrs:[{name:'units', type:NC_CHAR, value:'m'}] },
+      { name:'model_temp', dimIdx:[0], type:NC_FLOAT, data: profile.temps, attrs:[{name:'units', type:NC_CHAR, value:'degC'},{name:'long_name', type:NC_CHAR, value:'Model temperature'}, FILL] },
+      { name:'model_psal', dimIdx:[0], type:NC_FLOAT, data: profile.sal, attrs:[{name:'units', type:NC_CHAR, value:'PSU'},{name:'long_name', type:NC_CHAR, value:'Model salinity'}, FILL] },
+      { name:'obs_temp', dimIdx:[0], type:NC_FLOAT, data: profile.obsTemps, attrs:[{name:'units', type:NC_CHAR, value:'degC'},{name:'long_name', type:NC_CHAR, value:'Argo observed temperature'}, FILL] },
+      { name:'obs_psal', dimIdx:[0], type:NC_FLOAT, data: profile.obsSal, attrs:[{name:'units', type:NC_CHAR, value:'PSU'},{name:'long_name', type:NC_CHAR, value:'Argo observed salinity'}, FILL] },
+    ]
+  );
+
+  const blob = new Blob([buf], { type:'application/x-netcdf' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const dateBit = (cyc && cyc.time) ? cyc.time.slice(0,10) : new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `sagardrishti_float_${def.id}_${dateBit}.nc`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  showToast('NetCDF exported for float ' + def.id);
+}
+
+const btnDownloadNetcdf = document.getElementById('btn-download-netcdf');
+if (btnDownloadNetcdf) btnDownloadNetcdf.addEventListener('click', downloadNetCDF);
+
+function populateCompareSelectors(){
+  const floatSel = document.getElementById('cmp-float');
+  floatSel.innerHTML = floatDefs.map(f=>`<option value="${f.id}">Float ${f.id}</option>`).join('');
+  const depthSel = document.getElementById('cmp-depth');
+  depthSel.innerHTML = DEPTH_LEVELS.map(d=>`<option value="${d}">${d} m</option>`).join('');
+  depthSel.value = 50;
+  floatSel.addEventListener('change', ()=>{ renderCompare(); syncSelectedFloatAcrossViews(floatSel.value, 'compare'); });
+  depthSel.addEventListener('change', renderCompare);
+  document.getElementById('cmp-variable').addEventListener('change', renderCompare);
+}
+
+function renderCompare(){
+  const def = floatDefs.find(f=>f.id === document.getElementById('cmp-float').value) || floatDefs[0];
+  const depth = parseInt(document.getElementById('cmp-depth').value, 10);
+  const variable = document.getElementById('cmp-variable').value;
+  const idx = DEPTH_LEVELS.indexOf(depth);
+  const profile = floatProfileAt(def);
+
+  const modelVal = variable === 'TEMP' ? profile.temps[idx] : profile.sal[idx];
+  const obsVal = variable === 'TEMP' ? profile.obsTemps[idx] : profile.obsSal[idx];
+  const unit = variable === 'TEMP' ? '\u00b0C' : 'PSU';
+  const diff = +(modelVal - obsVal).toFixed(2);
+  const pct = obsVal !== 0 ? +((diff/obsVal)*100).toFixed(1) : 0;
+
+  const dElig = depthEligibility(depth);
+  const timeLabel = currentDateLabel();
+  const checks = [
+    { ok:true, label:'Same variable' },
+    { ok:true, label:'Compatible units (' + unit + ')' },
+    { ok:true, label:'Spatial proximity (within ' + regionLabelFor(state.region) + ')' },
+    { ok:true, label:'Compatible timestamp (' + timeLabel + ')' },
+    { ok: dElig.status === 'EXACT', label: dElig.status === 'EXACT' ? 'Compatible depth (exact)' : 'Compatible depth (interpolated)' },
+  ];
+  const allOk = checks.every(c=>c.ok);
+
+  document.getElementById('cmp-context-strip').innerHTML =
+    `<span>REGION &middot; <b>${state.region.name}</b></span>` +
+    `<span>RANGE &middot; <b>${state.timeline.start ? fmtShortDate(state.timeline.start) : '\u2014'} \u2013 ${state.timeline.end ? fmtShortDate(state.timeline.end) : '\u2014'}</b></span>` +
+    `<span>SELECTED DATE &middot; <b>${timeLabel}</b></span>`;
+
+  document.getElementById('eligibility-card').innerHTML = `
+    <div class="elig-badge ${allOk?'elig-eligible':'elig-partial'}">${allOk?'\u2713 Eligible for comparison':'\u25d0 Partially eligible'}</div>
+    <div style="font-size:13.5px;color:var(--mist);margin-bottom:14px;">${allOk ? 'Model and observation can be compared directly.' : 'Comparison possible with depth interpolation applied \u2014 interpret with slightly wider uncertainty.'}</div>
+    <div class="check-list">${checks.map(c=>`<div class="check-item ${c.ok?'ok':'warn'}"><b>${c.ok?'\u2713':'!'}</b>${c.label}</div>`).join('')}</div>
+  `;
+
+  document.getElementById('compare-cols').innerHTML = `
+    <div class="compare-col"><div class="cl">MODEL (${state.model})</div><div class="cv" style="color:var(--tide-bright)">${modelVal}${unit}</div><div class="swatch" style="background:linear-gradient(135deg,#22c1c9,#4d8b7c);"></div></div>
+    <div class="compare-col"><div class="cl">OBSERVATION (Float ${def.id})</div><div class="cv" style="color:var(--coral)">${obsVal}${unit}</div><div class="swatch" style="background:linear-gradient(135deg,#e8895b,#e6b95c);"></div></div>
+    <div class="compare-col ${diff>=0?'diff-pos':'diff-neg'}"><div class="cl">DIFFERENCE</div><div class="cv">${diff>0?'+':''}${diff}${unit}</div><div style="font-size:11.5px;color:var(--mist);margin-top:12px;">${pct>0?'+':''}${pct}% \u00b7 ${diff>=0?'Model warmer/higher':'Model cooler/lower'}</div></div>
+  `;
+
+  const threshold = variable === 'TEMP' ? 1.5 : 0.3;
+  const flagged = Math.abs(diff) > threshold;
+  document.getElementById('compare-insight').innerHTML = flagged
+    ? `\u26a0 <span>Model and observation diverge by ${Math.abs(diff)}${unit} at ${depth} m \u2014 worth a closer look, not necessarily an error.</span>`
+    : `\u2713 <span>Model and observation show close agreement at ${depth} m (difference ${Math.abs(diff)}${unit}).</span>`;
+
+  document.getElementById('prov-wmo').textContent = def.wmo;
+}
+
+document.getElementById('btn-cmp-provenance').addEventListener('click', ()=>{
+  const def = floatDefs.find(f=>f.id === document.getElementById('cmp-float').value) || floatDefs[0];
+  document.getElementById('prov-wmo').textContent = def.wmo;
+  openModal('modal-provenance');
+});
+
+/* ===================================================================
+   ANALYSIS — Chart.js charts (mirrors the OceanScope reference)
+   =================================================================== */
+const chartColors = ['#22c1c9', '#e8895b', '#e6b95c', '#5bd48a'];
+const chartInstances = {};
+
+function chartBaseOptions(extra){
+  return Object.assign({
+    responsive:true, maintainAspectRatio:false,
+    scales:{
+      x:{ ticks:{color:'#8aa8b4', font:{size:10.5}}, grid:{color:'rgba(255,255,255,0.05)'} },
+      y:{ ticks:{color:'#8aa8b4', font:{size:10.5}}, grid:{color:'rgba(255,255,255,0.05)'} },
+    },
+    plugins:{ legend:{ labels:{ color:'#eaf6f8', font:{size:11} } } }
+  }, extra || {});
+}
+function mkChart(id, config){
+  if (chartInstances[id]) chartInstances[id].destroy();
+  chartInstances[id] = new Chart(document.getElementById(id), config);
+}
+
+function populateAnalysisSelectors(){
+  const floatSel = document.getElementById('an-float');
+  floatSel.innerHTML = floatDefs.map(f=>`<option value="${f.id}">Float ${f.id}</option>`).join('');
+  populateAnalysisTimeSelector();
+}
+function populateAnalysisTimeSelector(){
+  const daySel = document.getElementById('an-day');
+  if (!daySel) return;
+  const prev = daySel.value;
+  daySel.innerHTML = state.timeline.labels.map((d,i)=>`<option value="${i}">${d}</option>`).join('');
+  if (prev !== '' && Number(prev) < state.timeline.labels.length) daySel.value = prev;
+}
+
+// Kept as a thin wrapper (used by the Analysis charts) so both views read
+// from the exact same real-or-mock logic in floatProfileAt().
+function fieldSeriesForFloat(def, dayIdx){
+  return floatProfileAt(def, dayIdx);
+}
+
+function renderAnalysisCharts(){
+  const def = floatDefs.find(f=>f.id === document.getElementById('an-float').value) || floatDefs[0];
+  const dayIdx = parseInt(document.getElementById('an-day').value || '0', 10);
+  const s = fieldSeriesForFloat(def, dayIdx);
+  const depthLabels = DEPTH_LEVELS.map(d=>d);
+  const depthLabelsM = DEPTH_LEVELS.map(d=>d+'m');
+
+  mkChart('chart-temp-depth', { type:'line', data:{ labels:depthLabels, datasets:[
+    { label:'Model', data:s.temps, borderColor:chartColors[0], tension:0.3 },
+    { label:'Observation', data:s.obsTemps, borderColor:chartColors[1], tension:0.3 },
+  ]}, options: chartBaseOptions({ scales:{
+      x:{ title:{display:true,text:'Depth (m)',color:'#8aa8b4'}, ticks:{color:'#8aa8b4'}, grid:{color:'rgba(255,255,255,0.05)'} },
+      y:{ title:{display:true,text:'\u00b0C',color:'#8aa8b4'}, ticks:{color:'#8aa8b4'}, grid:{color:'rgba(255,255,255,0.05)'} },
+  }})});
+
+  mkChart('chart-sal-depth', { type:'line', data:{ labels:depthLabels, datasets:[
+    { label:'Model', data:s.sal, borderColor:chartColors[0], tension:0.3 },
+    { label:'Observation', data:s.obsSal, borderColor:chartColors[1], tension:0.3 },
+  ]}, options: chartBaseOptions({ scales:{
+      x:{ title:{display:true,text:'Depth (m)',color:'#8aa8b4'}, ticks:{color:'#8aa8b4'}, grid:{color:'rgba(255,255,255,0.05)'} },
+      y:{ title:{display:true,text:'PSU',color:'#8aa8b4'}, ticks:{color:'#8aa8b4'}, grid:{color:'rgba(255,255,255,0.05)'} },
+  }})});
+
+  mkChart('chart-model-obs', { type:'bar', data:{ labels:depthLabelsM, datasets:[
+    { label:'Model', data:s.temps, backgroundColor:chartColors[0] },
+    { label:'Observation', data:s.obsTemps, backgroundColor:chartColors[1] },
+  ]}, options: chartBaseOptions() });
+
+  mkChart('chart-diff-depth', { type:'bar', data:{ labels:depthLabelsM, datasets:[
+    { label:'Model \u2212 Observation (\u00b0C)', data: s.temps.map((v,i)=>+(v - s.obsTemps[i]).toFixed(2)),
+      backgroundColor: s.temps.map((v,i)=> (v - s.obsTemps[i]) >= 0 ? chartColors[2] : chartColors[0]) },
+  ]}, options: chartBaseOptions() });
+
+  const timeTemps = [], timeObs = [];
+  const depth50Idx = DEPTH_LEVELS.indexOf(50);
+  const nDays = state.timeline.dates.length || 7;
+  for (let d=0; d<nDays; d++){
+    const series = fieldSeriesForFloat(def, d);
+    timeTemps.push(series.temps[depth50Idx]);
+    timeObs.push(series.obsTemps[depth50Idx]);
+  }
+  mkChart('chart-var-time', { type:'line', data:{ labels: state.timeline.labels.length ? state.timeline.labels : DEPTH_LEVELS.map((_,i)=>'Day '+(i+1)), datasets:[
+    { label:'Model', data:timeTemps, borderColor:chartColors[0], tension:0.3 },
+    { label:'Observation', data:timeObs, borderColor:chartColors[1], tension:0.3 },
+  ]}, options: chartBaseOptions() });
+}
+
+document.getElementById('an-float').addEventListener('change', ()=>{ renderAnalysisCharts(); syncSelectedFloatAcrossViews(document.getElementById('an-float').value, 'analysis'); });
+document.getElementById('an-day').addEventListener('change', renderAnalysisCharts);
+document.getElementById('btn-update-charts').addEventListener('click', renderAnalysisCharts);
+
+/* ===================================================================
+   REAL ARGO DATA BRIDGE
+   Loads argo_data.json (produced by the fetch_incois_argo.py script)
+   from the same folder as this page. If it's missing or the page is
+   opened as a bare file:// (browsers block fetch() of local files that
+   way), the app just keeps running on the built-in mock data — nothing
+   here is required for the demo to work.
+   =================================================================== */
+let REAL_DATA = null;
+
+async function loadRealArgoData(){
+  try{
+    const res = await fetch('argo_data.json', { cache:'no-store' });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data || !Array.isArray(data.floats) || !data.floats.length) return null;
+    return data;
+  } catch(e){
+    return null;
+  }
+}
+
+/* ===================================================================
+   COPERNICUS MODEL BRIDGE
+   Loads copernicus_model.json (produced by capernum.py, which samples
+   a real Copernicus Marine thetao/so subset at each Argo cycle's
+   lat/lon/time). Indexed by float id -> cycle number -> depth levels,
+   so Compare/Analysis can swap the synthetic "model" offset for a real
+   model profile without any other code changing.
+   =================================================================== */
+let MODEL_DATA = null;
+let MODEL_BY_FLOAT = {}; // { [floatId]: { [cycleNumber]: levels[] } }
+
+async function loadCopernicusModel(){
+  try{
+    const res = await fetch('copernicus_model.json', { cache:'no-store' });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data || !Array.isArray(data.floats) || !data.floats.length) return null;
+    return data;
+  } catch(e){
+    return null;
+  }
+}
+
+function buildModelIndex(data){
+  const idx = {};
+  (data.floats || []).forEach(f=>{
+    const byCycle = {};
+    const list = [];
+    (f.cycles || []).forEach(c=>{
+      if (c.cycle!=null) byCycle[c.cycle] = c.levels;
+      list.push({ cycle: c.cycle, time: c.time, levels: c.levels });
+    });
+    idx[f.id] = { byCycle, list };
+  });
+  return idx;
+}
+
+/* Model levels for a real float's cycle. Tries an exact cycle-number match
+   first, then falls back to the model cycle nearest in TIME — this keeps
+   Compare/Analysis matched up even if argo_data.json was re-fetched with a
+   different date range after copernicus_model.json was generated, which
+   would otherwise leave cycle numbers out of step between the two files. */
+function modelLevelsFor(def, cyc){
+  if (!def || !def.isReal || !cyc) return null;
+  const entry = MODEL_BY_FLOAT[def.id];
+  if (!entry) return null;
+  if (cyc.cycle!=null && entry.byCycle[cyc.cycle]) return entry.byCycle[cyc.cycle];
+  if (!entry.list.length) return null;
+  const target = cyc.time ? new Date(cyc.time).getTime() : NaN;
+  let best = entry.list[0], bestDiff = Infinity;
+  entry.list.forEach(c=>{
+    const t = c.time ? new Date(c.time).getTime() : NaN;
+    const diff = (isNaN(t) || isNaN(target)) ? Infinity : Math.abs(t - target);
+    if (diff < bestDiff){ bestDiff = diff; best = c; }
+  });
+  return best ? best.levels : null;
+}
+
+function setLiveStatusText(isLive, isModelLive){
+  const dataBit = isLive
+    ? (isModelLive ? 'Live ERDDAP + Copernicus data' : 'Live ERDDAP data')
+    : '';
+  const sessionBit = role === 'researcher' ? 'analytics session' : 'guided session';
+  document.getElementById('role-status-text').textContent = dataBit ? (dataBit + ' \u00b7 ' + sessionBit) : sessionBit;
+}
+
+/* applyLiveData(data, modelData) does the actual "swap the UI over to
+   real data" work. It's shared by two callers:
+   - tryLoadRealData(): page-load path, reads static argo_data.json /
+     copernicus_model.json already sitting next to this file.
+   - fetchLiveData(): backend path, POSTs the user's region/date/depth
+     selection to /api/fetch-live-data and applies whatever it returns,
+     without a page reload. */
+function applyLiveData(data, modelData){
+  if (!data){ setLiveStatusText(false); return; }
+  REAL_DATA = data;
+
+  if (modelData){
+    MODEL_DATA = modelData;
+    MODEL_BY_FLOAT = buildModelIndex(modelData);
+    const modelSel = document.getElementById('select-model');
+    if (modelSel){ modelSel.value = 'Copernicus'; }
+    state.model = 'Copernicus';
+  }
+
+  if (data.meta && data.meta.region){
+    const rr = data.meta.region;
+    applyRegionToInputs(rr);
+    selBasin.value = 'custom';
+    setRegion({ key:'custom', name:'Argo data region', minLat:rr.minLat, maxLat:rr.maxLat, minLon:rr.minLon, maxLon:rr.maxLon });
+  }
+  if (data.meta && data.meta.time_range && data.meta.time_range.start && data.meta.time_range.end){
+    inDateStart.value = data.meta.time_range.start.slice(0,10);
+    inDateEnd.value = data.meta.time_range.end.slice(0,10);
+    computeTimeline();
+  }
+
+  const palette = [0xe8895b, 0x5bd48a, 0x22c1c9, 0xe6b95c, 0x5be8e0, 0xc8e621];
+  floatDefs = data.floats.slice(0, 12).map((f, i)=>{
+    const allDepths = f.cycles.flatMap(c=>c.levels.map(l=>l.depth)).filter(v=>v!=null);
+    const parkDepth = allDepths.length ? Math.round(Math.min(1000, Math.max(...allDepths))) : 500;
+    return {
+      id: f.id, wmo: f.wmo, color: palette[i % palette.length],
+      x:0, z:0, lat: f.last_lat, lon: f.last_lon,
+      surfaceDepth: 5, parkDepth: Math.max(50, parkDepth),
+      phase: data.floats.length ? (i / data.floats.length) : 0,
+      status: 'Active', isReal:true, cycles: f.cycles,
+      firstTime: f.first_time, lastTime: f.last_time,
+    };
+  });
+
+  rebuildFloatMeshes();
+  repositionFloats();
+  populateCompareSelectors();
+  populateAnalysisSelectors();
+  renderCompare();
+  renderAnalysisCharts();
+  refreshTimeReadout();
+  updateRmseCard();
+  setLiveStatusText(true, !!modelData);
+  showToast('Loaded ' + floatDefs.length + ' real Argo float(s)'
+    + (modelData ? ' + Copernicus model profiles' : ' (Copernicus model not found, using demo offset)'));
+}
+
+async function tryLoadRealData(){
+  const [data, modelData] = await Promise.all([loadRealArgoData(), loadCopernicusModel()]);
+  applyLiveData(data, modelData);
+}
+
+/* ===================================================================
+   FETCH LIVE DATA — wires the LOCATION / TIME RANGE / DEPTH controls
+   in the control panel to the backend (server.py), which runs
+   fetch_incois_argo.py (+ capernicus_model.py) for exactly the box,
+   dates and depth the user picked, and returns fresh JSON. Every panel
+   (3D view, Compare, Analysis, Profile, Trajectory, Metadata, Quality,
+   Provenance) already reads from REAL_DATA / MODEL_BY_FLOAT via
+   applyLiveData(), so nothing else needs to change once this lands.
+   =================================================================== */
+const btnFetchLive = document.getElementById('btn-fetch-live');
+const fetchLiveStatus = document.getElementById('fetch-live-status');
+const toggleIncludeModel = document.getElementById('toggle-include-model');
+
+if (toggleIncludeModel){
+  toggleIncludeModel.addEventListener('click', ()=> toggleIncludeModel.classList.toggle('on'));
+}
+
+async function fetchLiveData(){
+  const region = readRegionFromInputs();
+  const start = inDateStart.value, end = inDateEnd.value;
+  if (!start || !end){
+    fetchLiveStatus.textContent = 'Set a start and end date first.';
+    return;
+  }
+
+  const includeModel = toggleIncludeModel ? toggleIncludeModel.classList.contains('on') : false;
+  const maxDepth = parseFloat(document.getElementById('depth-slider').max) || 1000;
+
+  const origLabel = btnFetchLive.textContent;
+  btnFetchLive.disabled = true;
+  btnFetchLive.textContent = 'Fetching\u2026';
+  fetchLiveStatus.textContent = 'Querying INCOIS ERDDAP for this region and date range\u2026';
+
+  try{
+    const res = await fetch('/api/fetch-live-data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        minLat: region.minLat, maxLat: region.maxLat,
+        minLon: region.minLon, maxLon: region.maxLon,
+        start, end, minDepth: 0.5, maxDepth,
+        includeModel,
+      }),
+    });
+    const payload = await res.json();
+    if (!res.ok || payload.error){
+      throw new Error(payload.error || ('Request failed (HTTP ' + res.status + ')'));
+    }
+
+    applyLiveData(payload.argo, payload.model);
+
+    if (payload.modelWarning){
+      fetchLiveStatus.textContent = 'Argo loaded \u00b7 model skipped: ' + payload.modelWarning;
+    } else {
+      fetchLiveStatus.textContent = 'Last fetched ' + new Date(payload.fetchedAt).toLocaleTimeString();
+    }
+  } catch(err){
+    fetchLiveStatus.textContent = 'Fetch failed: ' + err.message;
+    showToast('Live data fetch failed \u2014 see panel for details');
+  } finally {
+    btnFetchLive.disabled = false;
+    btnFetchLive.textContent = origLabel;
+  }
+}
+
+if (btnFetchLive) btnFetchLive.addEventListener('click', fetchLiveData);
+
+/* ===================================================================
+   INIT
+   =================================================================== */
+onViewerResize();
+animate();
+refreshDepthReadout();
+applyRegionPreset('bob');
+computeTimeline();
+refreshTimeReadout();
+populateCompareSelectors();
+renderCompare();
+populateAnalysisSelectors();
+renderAnalysisCharts();
+tryLoadRealData();
+</script>
+</body>
+</html>
