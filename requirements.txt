@@ -1,12 +1,12 @@
-Flask
+flask
 flask-cors
-python-dotenv
 gunicorn
-
-numpy
+python-dotenv
 pandas
 requests
 xarray
+scipy
 netCDF4
-
+numpy
+urllib3
 copernicusmarine
