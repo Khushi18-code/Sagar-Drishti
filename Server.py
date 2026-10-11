@@ -72,6 +72,7 @@ from flask_cors import CORS
 
 from Capernicus_model import ModelFetchError, build_copernicus_model
 from Fetch_incois_argo import ArgoFetchError, fetch_argo
+from tutor_api import tutor_bp  # Gemini-backed /api/tutor, /api/quiz, /api/ai-status
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(levelname)s %(message)s")
 log = logging.getLogger("sagardrishti")
@@ -94,6 +95,7 @@ log.info("Serving frontend from: %s", FRONTEND_DIR)
 
 app = Flask(__name__, static_folder=str(FRONTEND_DIR), static_url_path="")
 CORS(app)
+app.register_blueprint(tutor_bp)
 
 
 def _iso(date_str: str, end_of_day: bool = False) -> str:

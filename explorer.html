@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+/* Mode router: Education users are sent to explorer_2.html (education edition).
+   Researchers (and anyone with no role yet) stay on this page, unchanged. */
+(function(){try{var r=localStorage.getItem('SagarDrishti_role');
+if(r&&r!=='researcher'){location.replace('explorer_2.html');}}catch(e){}})();
+</script>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SagarDrishti &middot; Explorer</title>
