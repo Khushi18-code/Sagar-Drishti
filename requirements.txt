@@ -10,3 +10,4 @@ netCDF4
 numpy
 urllib3
 copernicusmarine
+google-genai

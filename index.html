@@ -98,7 +98,7 @@
   <div class="hero">
     <div class="hero-eyebrow">GLOBAL ARGO FLOAT NETWORK</div>
     <h1>See the ocean's <em>hidden layers</em></h1>
-    <p>Explore live temperature, salinity and chlorophyll data from autonomous ocean floats, rendered as an interactive 3D cross-section.</p>
+    <p>Explore live temperature and salinity data from autonomous ocean floats, rendered as an interactive 3D cross-section.</p>
     <div class="hero-ctas">
       <button class="btn btn-primary" id="btn-launch">Launch Explorer</button>
       <button class="btn btn-ghost" id="btn-learn">See how it works</button>
@@ -163,13 +163,14 @@ function showToast(msg){
 }
 
 /* Role choice now performs a real page navigation to explorer.html
-   instead of switching a section within this page. */
+   instead of switching a section within this page.
+   Researcher -> explorer.html, Education -> explorer_2.html. */
 document.querySelectorAll('.role-card').forEach(card=>{
   card.addEventListener('click', ()=>{
     const role = card.dataset.role;
     localStorage.setItem('SagarDrishti_role', role);
     showToast(role === 'researcher' ? 'Signed in as Researcher' : 'Signed in as Education user');
-    setTimeout(()=>{ window.location.href = 'explorer.html'; }, 350);
+    setTimeout(()=>{ window.location.href = (role === 'researcher') ? 'explorer.html' : 'explorer_2.html'; }, 350);
   });
 });
 
