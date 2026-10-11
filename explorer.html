@@ -1759,7 +1759,7 @@ function selectFloat(idx, silent){
   document.getElementById('prov-wmo').textContent = f.def.wmo;
   document.getElementById('prov-updated').textContent = (f.def.isReal && f.def.lastTime ? fmtLongDate(new Date(f.def.lastTime)) : (tl.end ? fmtLongDate(tl.end) : '\u2014'));
   const provSource = document.getElementById('prov-source');
-  if (provSource) provSource.textContent = f.def.isReal ? 'INCOIS ERDDAP \u00b7 Indian_ARGO_Floats' : 'Argo GDAC (ifremer mirror) \u00b7 demo data';
+  if (provSource) provSource.textContent = f.def.isReal ? 'INCOIS ERDDAP \u00b7 Indian_ARGO_Floats' : 'Demo data';
 
   let profileSeries, trajPoints;
   if (cyc && cyc.levels && cyc.levels.length){
